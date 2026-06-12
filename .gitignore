@@ -3,3 +3,21 @@
 
 #ファイルなので/をつけない
 .env
+
+# jupyter
+.ipynb_checkpoints/
+
+# datasetは全部無視
+dataset/
+
+# YOLO outputs
+runs/
+outputs/
+output/
+
+# model weights
+*.pt
+*.onnx
+
+# ai prototype
+ai_prototype/output/
