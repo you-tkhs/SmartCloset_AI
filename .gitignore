@@ -21,3 +21,6 @@ output/
 
 # ai prototype
 ai_prototype/output/
+
+# zipファイル
+*.zip
