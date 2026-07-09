@@ -20,7 +20,8 @@ output/
 *.onnx
 
 # ai prototype
-ai_prototype/output/
+ai_prototype/Poc/output
+ai_prototype/Poc/test_images
 
 # zipファイル
 *.zip
