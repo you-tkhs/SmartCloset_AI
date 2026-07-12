@@ -874,7 +874,7 @@ chore(backend): scaffold project structure
 ## T6-SR: Phase 6 セルフレビューと完了処理
 
 - **前提条件**: T6-1〜T6-6完了
-- **実装内容**: 0.5節の共通チェックリスト全消化 → ユーザー承認のもとpush・mainへmerge
+- **実装内容**: **READMEを完成状態に更新**(①ステータス行を「稼働中」へ ②デモ画像を選抜して `docs/images/` にcommitし掲載=README内の `TODO(デモ)` コメント参照 ③動かし方の最終確認 ④ロードマップ全チェック+「今後の展望」をdesign.md 18章から数行追記)→ 0.5節の共通チェックリスト全消化 → ユーザー承認のもとpush・mainへmerge
 - **検証コマンド**: `cd backend && python -m pytest -m "not yolo" -q` / 公開URLでのhealth確認
 - **推奨コミットメッセージ**: `chore(deploy): complete phase 6 deployment`
 - **チェック**: 実装済み [ ] / テスト済み [ ] / commit済み [ ] / push済み [ ]
