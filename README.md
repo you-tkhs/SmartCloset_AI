@@ -68,7 +68,8 @@ Caddy(:443) ── 外部公開はここのみ・自動HTTPS
 | 素材抽出 | 88.0% | 96.0% |
 | **最終登録判定** | **64.5%** | **84.9%** |
 
-- 評価基準: [docs/evaluation.md](docs/evaluation.md) / モデルレベルの mAP: [docs/val_result_9class_30epoch_data_augmentation.md](docs/val_result_9class_30epoch_data_augmentation.md)
+- 評価基準: [docs/evaluation.md](docs/evaluation.md)
+- モデルレベルの mAP: [docs/val_result_9class_30epoch_data_augmentation.md](docs/val_result_9class_30epoch_data_augmentation.md)
 - 登録率のボトルネックはYOLO切り出し精度(watch等)。アプリではメタデータの手動補正機能で運用カバーし、補正データを再学習に還元する設計([design.md 18.2節](docs/design.md))
 
 ## 動かし方(現時点: AIパイプライン)
