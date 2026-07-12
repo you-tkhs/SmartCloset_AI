@@ -26,7 +26,8 @@
 | `docs/todo.md` | 本書を実装に落とすための作業指示書。タスクID・完了条件・検証コマンド・commit/push管理 | 本書の章番号を参照する |
 | `docs/specification.md` | AI PoCの仕様・結果の記録(歴史的正本)。**変更しない** | PoC結果数値・9カテゴリ定義の出典。同文書14章の将来構成(PostgreSQL等)は本書が上書きする |
 | `docs/prompt_design.md` | 属性抽出プロンプトの設計根拠・改善履歴 | enum候補値の出典。本書付録Aと同値。変更時は prompt_design.md を先に更新する |
-| `docs/evaluation.md` | PoC評価基準(○△×) | テスト・モニタリング設計の参照元 |
+| `docs/evaluation.md` | PoC評価基準(○△×)+モデル指標との対応考察 | テスト・モニタリング設計の参照元 |
+| `docs/val_result_9class_30epoch_data_augmentation.md` | 学習時 `model.val()` の標準指標(mAP等、クラス別) | モデルレベルのベンチマーク記録。18.2節のモニタリングの基準値 |
 | `docs/archive/00_initial_concept.md` | 開発初期の構想メモ(目的・差別化・動機)の歴史的記録 | メンテナンスしない。実装の参照元にしない |
 | `docs/archive/01_design_v1.0.md` | 詳細設計書 ver 1.0 の歴史的記録 | メンテナンスしない。本書2.3節の変更点一覧の比較元。実装の参照元にしない |
 
