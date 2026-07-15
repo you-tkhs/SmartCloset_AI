@@ -22,11 +22,11 @@
 
 ### 1. ドメインシフトを特定し、評価体系を作り直した
 
-学習データ(Fashionpedia)の検証精度は良いのに実画像では機能しない——原因は、Fashionpediaが「人物着用の全身写真」で時計や帽子が極小に写るのに対し、本アプリの入力は「単品アップ写真」というスケールの根本的なずれ(ドメインシフト)だった。そこで実ユースケースに沿った**独自テストセット251枚**を構築し、プロダクト指標での評価に切り替えた。→ [開発経緯](docs/development_history.md)
+学習データ(Fashionpedia)の検証精度は良いのに実画像では機能しない——原因は、Fashionpediaが「人物着用の全身写真」で時計や帽子が極小に写るのに対し、本アプリの入力は「単品アップ写真」というスケールの根本的なずれ(ドメインシフト)だった。そこで実ユースケースに沿った**独自テストセット251枚**を構築し、プロダクト指標での評価に切り替えた。→ [PoC開発の記録](docs/poc_history.md)
 
 ### 2. クラス設計は3回作り直した(7→13→9クラス)
 
-「accessory」1クラスが13種の形状の寄せ集めで学習が頭打ちになる問題を診断して分割。最終的に「良質な学習データが確保できない×プロダクト重要度が低い」4クラスを**捨てる判断**をして9クラスに確定した。→ [開発経緯](docs/development_history.md)
+「accessory」1クラスが13種の形状の寄せ集めで学習が頭打ちになる問題を診断して分割。最終的に「良質な学習データが確保できない×プロダクト重要度が低い」4クラスを**捨てる判断**をして9クラスに確定した。→ [PoC開発の記録](docs/poc_history.md)
 
 ### 3. 弱点クラスはデータで解決した
 
@@ -107,7 +107,7 @@ jupyter lab ai_prototype/pipe-line/smartcloset_pipeline_functioned.ipynb
 |---|---|
 | [docs/design.md](docs/design.md) | 設計書 ver2.0(正本)— アーキテクチャ・API・DB・異常系・デプロイ |
 | [docs/todo.md](docs/todo.md) | 実装作業指示書(Phase 0〜6・全タスク) |
-| [docs/development_history.md](docs/development_history.md) | 開発経緯 — 技術的意思決定の記録(ドメインシフト発見・クラス設計の変遷) |
+| [docs/poc_history.md](docs/poc_history.md) | PoC開発の記録 — 技術的意思決定と知見(ドメインシフト発見・クラス設計の変遷) |
 | [docs/specification.md](docs/specification.md) | AIシステム仕様・PoC結果 |
 | [docs/prompt_design.md](docs/prompt_design.md) | LLMプロンプト設計・改善履歴 |
 | [docs/evaluation.md](docs/evaluation.md) | 評価基準・mAPと人手評価の対応考察 |

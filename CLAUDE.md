@@ -11,7 +11,7 @@ AIロジックのPoCは完了済み。現在は docs/todo.md に沿ってアプ�
   1. `docs/todo.md` から「現在のタスク」のセクションだけを読む(未チェックの最初のタスク。Grepでタスク ID や `実装済み [ ]` を検索して位置を特定し、offset/limit で部分読み)
   2. タスク本文が参照する design.md の節(例:「design.md 7.3節」)だけを、章見出しをGrepしてから部分読みする
   3. design.md 全体の索引は付録C.3(相互参照マップ)にある
-- `docs/specification.md` / `prompt_design.md` / `evaluation.md` はPoC記録。enum・プロンプトの出典として必要時のみ参照
+- `docs/specification.md` / `prompt_design.md` / `evaluation.md` / `poc_history.md` はPoC記録。enum・プロンプトの出典として必要時のみ参照
 - `docs/archive/` は歴史的記録。**実装の参照元にしない**
 
 ## 開発の進め方(厳守)
