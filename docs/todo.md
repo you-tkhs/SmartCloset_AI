@@ -124,8 +124,8 @@ chore(backend): scaffold project structure
 - **想定される正常結果**: `('wal',)` と design.md 9.2節の全カラム名
 - **想定される異常結果**: カラム名の不一致(→design.mdに合わせて修正)
 - **推奨コミットメッセージ**: `feat(db): add sqlite engine with WAL and ORM models`
-- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [ ] / push済み [ ]
-- **commit hash**: ______
+- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [x] / push済み [ ]
+- **commit hash**: `2a71cc6`
 - **備考**: SQLite固有処理をdatabase.py外に書かない(design.md 9.4節)
 
 ## T0-4: storage_service 基盤
