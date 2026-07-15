@@ -30,7 +30,7 @@
 
 ### 3. 弱点クラスはデータで解決した
 
-Fashionpediaだけでは検出できなかった shoes / watch / glasses 等を、Roboflow Universe の補強データで統合(**train 52,784枚**)。破滅的忘却を避けるため追加学習ではなくゼロから再学習し、データ拡張+30epochで弱点クラスの認識に成功した。
+Fashionpediaだけでは検出できなかった shoes / watch / glasses 等を、Roboflow Universe の補強データで統合(**train 52,784枚**)。破滅的忘却を避けるため追加学習ではなくゼロから再学習し、データ拡張+30epochで弱点クラスの認識に成功した。→ [PoC開発の記録](docs/poc_history.md)
 
 ### 4. モデル指標×プロダクト指標の二層評価
 
