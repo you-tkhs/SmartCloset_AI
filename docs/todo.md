@@ -89,8 +89,8 @@ chore(backend): scaffold project structure
 - **想定される正常結果**: importエラーなし
 - **想定される異常結果**: ARM/CUDA関連でtorchの解決に失敗する場合はCPU版を明示(design.md 15.2節)
 - **推奨コミットメッセージ**: `chore(backend): scaffold project structure and dependencies`
-- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [ ] / push済み [ ]
-- **commit hash**: ______
+- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [x] / push済み [ ]
+- **commit hash**: `b1da784`
 - **備考**: ルートrequirements.txtは使わない(design.md 18.3節)
 
 ## T0-2: config.py(設定一元管理)
