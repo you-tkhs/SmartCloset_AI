@@ -105,8 +105,8 @@ chore(backend): scaffold project structure
 - **想定される正常結果**: `0.25 5000`
 - **想定される異常結果**: .env未配置でもデフォルト値で動作する(APIキーはNone許容とし、使用時にチェック)
 - **推奨コミットメッセージ**: `feat(config): add centralized settings with pydantic-settings`
-- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [ ] / push済み [ ]
-- **commit hash**: ______
+- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [x] / push済み [ ]
+- **commit hash**: `f49c0e0`
 - **備考**: 設定名・初期値は design.md 5.2節と一字一句一致させる
 
 ## T0-3: database.py とSQLAlchemyモデル
