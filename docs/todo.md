@@ -89,7 +89,7 @@ chore(backend): scaffold project structure
 - **想定される正常結果**: importエラーなし
 - **想定される異常結果**: ARM/CUDA関連でtorchの解決に失敗する場合はCPU版を明示(design.md 15.2節)
 - **推奨コミットメッセージ**: `chore(backend): scaffold project structure and dependencies`
-- **チェック**: 実装済み [ ] / テスト済み [ ] / commit済み [ ] / push済み [ ]
+- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [ ] / push済み [ ]
 - **commit hash**: ______
 - **備考**: ルートrequirements.txtは使わない(design.md 18.3節)
 
