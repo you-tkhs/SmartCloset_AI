@@ -160,7 +160,7 @@ chore(backend): scaffold project structure
 - **想定される正常結果**: `{"status":"ok","model_loaded":true,"database_available":true,"storage_writable":true,"storage_free_mb":<数値>}`
 - **想定される異常結果**: 重み欠落時に起動失敗しRuntimeErrorがログに出る(これが正しい挙動)
 - **推奨コミットメッセージ**: `feat(app): add lifespan startup checks and health endpoint`
-- **チェック**: 実装済み [ ] / テスト済み [ ] / commit済み [ ] / push済み [ ]
+- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [ ] / push済み [ ]
 - **commit hash**: ______
 - **備考**: uvicornは常に単一ワーカー(design.md 18.3節)
 
