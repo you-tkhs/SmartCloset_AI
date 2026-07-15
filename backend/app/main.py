@@ -21,8 +21,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-storage_service.init_storage()
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -60,12 +58,12 @@ app.add_middleware(
 
 app.mount(
     "/images/originals",
-    StaticFiles(directory=Path(settings.STORAGE_DIR) / "originals"),
+    StaticFiles(directory=Path(settings.STORAGE_DIR) / "originals", check_dir=False),
     name="originals",
 )
 app.mount(
     "/images/transparent",
-    StaticFiles(directory=Path(settings.STORAGE_DIR) / "transparent"),
+    StaticFiles(directory=Path(settings.STORAGE_DIR) / "transparent", check_dir=False),
     name="transparent",
 )
 
