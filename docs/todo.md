@@ -140,7 +140,7 @@ chore(backend): scaffold project structure
 - **想定される正常結果**: pass
 - **想定される異常結果**: -
 - **推奨コミットメッセージ**: `feat(storage): add storage service with idempotent deletion`
-- **チェック**: 実装済み [ ] / テスト済み [ ] / commit済み [ ] / push済み [ ]
+- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [ ] / push済み [ ]
 - **commit hash**: ______
 - **備考**: 削除処理は今後この関数群のみを使う(重複実装禁止。design.md 10.4節)
 
