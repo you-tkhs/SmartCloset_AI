@@ -115,7 +115,3 @@ jupyter lab ai_prototype/pipe-line/smartcloset_pipeline_functioned.ipynb
 | [docs/archive/](docs/archive/) | 初期構想メモ・旧設計書(歴史的記録) |
 
 <!-- TODO: 開発記事(Zenn等)を書いたらここにリンクを追加 -->
-
-## 作者
-
-髙橋 葉(岩手大学大学院 修士1年)— UAV空撮画像による水田の3次元復元・収量予測を研究。E資格保有。
