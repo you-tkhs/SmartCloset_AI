@@ -188,9 +188,9 @@ chore(backend): scaffold project structure
 - **完了条件**: チェックリスト全項目済み、mainにmerge済み
 - **検証コマンド**: `cd backend && python -m pytest -q` / `git log --oneline -5`
 - **推奨コミットメッセージ**: `chore(backend): complete phase 0 foundation`
-- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [ ] / push済み [ ]
-- **push済みcommit hash**: ______
-- **備考**: セルフレビュー実施結果は本タスク実施時のセッションログ参照。設計との差分なし
+- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [x] / push済み [x]
+- **push済みcommit hash**: `e9e5044`
+- **備考**: セルフレビュー実施結果は本タスク実施時のセッションログ参照。設計との差分なし。mainへのmergeは未実施(ユーザー指示により保留)
 
 # Phase 1: アップロード+AIパイプライン(ブランチ: `phase/1-upload-pipeline`)
 
