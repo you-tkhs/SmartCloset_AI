@@ -25,3 +25,9 @@ ai_prototype/Poc/test_images
 
 # zipファイル
 *.zip
+
+# backend (SmartCloset AI)
+backend/storage/
+backend/data/
+backend/.env
+deploy/.env
