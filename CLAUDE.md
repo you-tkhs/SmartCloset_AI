@@ -24,7 +24,7 @@ AIロジックのPoCは完了済み。現在は docs/todo.md に沿ってアプ�
 
 - **commit / push / merge はユーザーの明示的な指示があったときのみ実行する**
 - mainへの直接実装禁止。Phaseごとに `phase/N-...` ブランチ(todo.md 0.1節)
-- force push禁止(`--force-with-lease` も禁止)。Conventional Commits形式
+- force push禁止(`--force-with-lease` も禁止)。Conventional Commits形式(type/scopeは英語、件名・本文は日本語)
 - push前に .env・APIキー・DB・画像・モデル重みの混入がないか確認
 
 ## 実装の不変条件(design.mdを読まなくても守ること)

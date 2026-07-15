@@ -20,14 +20,18 @@
 
 ### 0.2 コミットメッセージ(Conventional Commits)
 
+type/scope は英語、件名・本文は日本語で書く。
+
 ```text
-feat(upload): add validated image upload flow
-fix(storage): clean files after persistence failure
-feat(pipeline): recover interrupted processing records
-test(upload): cover invalid image and storage failures
-docs(design): define upload compensation workflow
-chore(backend): scaffold project structure
+feat(upload): 検証付き画像アップロードフローを実装
+fix(storage): 保存失敗時の補償処理でファイルを削除
+feat(pipeline): 中断されたprocessingレコードの復旧を追加
+test(upload): 不正画像とストレージ失敗系のテストを追加
+docs(design): アップロード補償フローを定義
+chore(backend): プロジェクト雛形を作成
 ```
+
+※各タスクの「推奨コミットメッセージ」欄は英語表記のままだが、実際のコミットでは同内容を日本語で書くこと。
 
 ### 0.3 設計変更時の手順(厳守。design.md 1.4節)
 
