@@ -108,10 +108,10 @@ jupyter lab ai_prototype/pipe-line/smartcloset_pipeline_functioned.ipynb
 | [docs/design.md](docs/design.md) | 設計書 ver2.0(正本)— アーキテクチャ・API・DB・異常系・デプロイ |
 | [docs/todo.md](docs/todo.md) | 実装作業指示書(Phase 0〜6・全タスク) |
 | [docs/poc_history.md](docs/poc_history.md) | PoC開発の記録 — 技術的意思決定と知見(ドメインシフト発見・クラス設計の変遷) |
+| [docs/val_result_9class_30epoch_data_augmentation.md](docs/val_result_9class_30epoch_data_augmentation.md) | 学習時のクラス別mAP |
 | [docs/specification.md](docs/specification.md) | AIシステム仕様・PoC結果 |
 | [docs/prompt_design.md](docs/prompt_design.md) | LLMプロンプト設計・改善履歴 |
 | [docs/evaluation.md](docs/evaluation.md) | 評価基準・mAPと人手評価の対応考察 |
-| [docs/val_result_9class_30epoch_data_augmentation.md](docs/val_result_9class_30epoch_data_augmentation.md) | 学習時のクラス別mAP |
 | [docs/archive/](docs/archive/) | 初期構想メモ・旧設計書(歴史的記録) |
 
 <!-- TODO: 開発記事(Zenn等)を書いたらここにリンクを追加 -->
