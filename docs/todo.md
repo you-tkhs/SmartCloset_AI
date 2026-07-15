@@ -176,8 +176,8 @@ chore(backend): scaffold project structure
 - **想定される正常結果**: all passed
 - **想定される異常結果**: -
 - **推奨コミットメッセージ**: `test(app): add test infrastructure and health tests`
-- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [ ] / push済み [ ]
-- **commit hash**: ______
+- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [x] / push済み [ ]
+- **commit hash**: `ac2f7ae`
 - **備考**: 本番DB/storageを触らないことをconftestで保証する。conftestでのDB/storage差し替えを機能させるため、database.py(build_engine関数への分離)・main.py(モジュールレベルinit_storage呼び出し削除、StaticFilesのcheck_dir=False化)をあわせて調整
 
 ## T0-SR: Phase 0 セルフレビューと完了処理
