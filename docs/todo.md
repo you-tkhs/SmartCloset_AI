@@ -271,8 +271,8 @@ chore(backend): プロジェクト雛形を作成
 - **想定される正常結果**: all passed(重み無し環境ではskipped)
 - **想定される異常結果**: no_clothing.jpgで検出が出てしまう場合はより衣服から遠い画像に差し替える
 - **推奨コミットメッセージ**: `feat(pipeline): port YOLO segmentation service from notebook`
-- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [ ] / push済み [ ]
-- **commit hash**: ______
+- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [x] / push済み [ ]
+- **commit hash**: `ab63bba`
 - **備考**: 移植元: `ai_prototype/pipe-line/smartcloset_pipeline_functioned.ipynb`(参照は任意)。実重み(models/fashionpedia_9class_with_data_augmentation.pt)で4件とも実行確認済み。no_clothing.jpg(PIL生成の風景画像)でno_mask判定になることも確認済み
 
 ## T1-4: llm_service 移植(strictスキーマ+リトライ)
