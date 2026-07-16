@@ -351,7 +351,7 @@ chore(backend): プロジェクト雛形を作成
 - **推奨コミットメッセージ**: `feat(upload): add validated image upload flow` / `fix(storage): clean files after persistence failure`(補償は分けてもよい)
 - **チェック**: 実装済み [x] / テスト済み [x] / commit済み [x] / push済み [ ]
 - **commit hash**: `76deb28`
-- **備考**: 202を返す条件はdesign.md 6.2節の定義に厳密に従う。既存キー照合(T1-7)はまだ未実装のため、同一キー再送は現時点ではUNIQUE制約違反=database_errorになる(T1-7で解消)
+- **備考**: 202を返す条件はdesign.md 6.2節の定義に厳密に従う。既存キー照合による同一キー再送対応はT1-7で実装済み
 
 ## T1-7: Idempotency-Key(二重登録防止)
 
@@ -360,17 +360,17 @@ chore(backend): プロジェクト雛形を作成
 - **変更対象ファイル**: `backend/app/routers/upload.py`、`backend/tests/test_upload.py`
 - **実装内容**: 既存キー照合(tmp受信・SHA-256確定後に一致判定)。一致→既存item_id+status応答(processing:202 / completed:200 / failed:200+failure_reason)。不一致→409 idempotency_key_conflict。UNIQUE制約違反(同時競合)→既存レコード応答へフォールバック
 - **サブタスク**:
-  - [ ] 同一キー+同一画像再送(processing)→ 202・レコード数が増えない
-  - [ ] 同一キー+同一画像再送(completed)→ 200・status=completed
-  - [ ] 同一キー+同一画像再送(failed)→ 200・failure_reason付き
-  - [ ] 同一キー+異なる画像 → 409 idempotency_key_conflict
+  - [x] 同一キー+同一画像再送(processing)→ 202・レコード数が増えない
+  - [x] 同一キー+同一画像再送(completed)→ 200・status=completed
+  - [x] 同一キー+同一画像再送(failed)→ 200・failure_reason付き
+  - [x] 同一キー+異なる画像 → 409 idempotency_key_conflict
 - **影響範囲**: フロントエンドの再送処理
 - **完了条件**: サブタスクgreen
 - **検証コマンド**: `cd backend && python -m pytest tests/test_upload.py -q -k idempotency`
 - **想定される正常結果**: all passed
 - **想定される異常結果**: -
 - **推奨コミットメッセージ**: `feat(upload): add idempotency key based duplicate prevention`
-- **チェック**: 実装済み [ ] / テスト済み [ ] / commit済み [ ] / push済み [ ]
+- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [ ] / push済み [ ]
 - **commit hash**: ______
 - **備考**: 画像ハッシュによる内容ベース重複判定は将来拡張(実装しない)
 

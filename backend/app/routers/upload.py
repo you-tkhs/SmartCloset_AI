@@ -1,15 +1,11 @@
-"""design.md 6.2節・7.3節(17段階)・7.5節(補償処理): POST /api/upload。
-
-既存キー照合によるIdempotency-Keyの二重登録防止はT1-7で追加する。
-本ルーターでは存在・UUID形式の検証のみを行う。
-"""
+"""design.md 6.2節・7.3節(17段階)・7.5節(補償処理)・7.7節(Idempotency-Key): POST /api/upload。"""
 
 import logging
 import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Header, HTTPException, Request, UploadFile
-from sqlalchemy.exc import SQLAlchemyError
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Header, HTTPException, Request, Response, UploadFile
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -35,9 +31,17 @@ def _error(status_code: int, error_code: str, detail: str, retryable: bool) -> H
     )
 
 
+def _existing_item_response(response: Response, item: ClothingItem) -> UploadAcceptedResponse:
+    """design.md 7.7節: 既存Idempotency-Keyヒット時の応答(processing以外は200)。"""
+    if item.status != "processing":
+        response.status_code = 200
+    return UploadAcceptedResponse(item_id=item.id, status=item.status, failure_reason=item.failure_reason)
+
+
 @router.post("/api/upload", response_model=UploadAcceptedResponse, status_code=202)
 async def upload_item(
     request: Request,
+    response: Response,
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     idempotency_key: str = Header(alias="Idempotency-Key"),
@@ -78,6 +82,18 @@ async def upload_item(
 
         tmp_path = upload_result.tmp_path
 
+        # 7.7節: 既存Idempotency-Keyとの照合(tmp受信・SHA-256確定後に判定する)
+        existing_item = db.query(ClothingItem).filter(ClothingItem.idempotency_key == idempotency_key).first()
+        if existing_item is not None:
+            if existing_item.upload_sha256 != upload_result.sha256:
+                raise _error(
+                    409,
+                    "idempotency_key_conflict",
+                    "同一のIdempotency-Keyで異なる画像が送信されました。",
+                    False,
+                )
+            return _existing_item_response(response, existing_item)
+
         # 手順5〜10: 実データ検証・正規化
         try:
             normalized = validate_and_normalize(tmp_path, file.content_type, file.filename)
@@ -101,6 +117,19 @@ async def upload_item(
         db.add(item)
         try:
             db.commit()
+        except IntegrityError as e:
+            # 7.7節: 同時リクエストの競合(UNIQUE制約違反)→既存レコード応答へフォールバック
+            db.rollback()
+            existing_item = db.query(ClothingItem).filter(ClothingItem.idempotency_key == idempotency_key).first()
+            if existing_item is not None:
+                return _existing_item_response(response, existing_item)
+            logger.error("item %s: provisional db registration failed", item_id)
+            raise _error(
+                503,
+                "database_error",
+                "サーバーが混み合っています。しばらく待ってから再度お試しください。",
+                True,
+            ) from e
         except SQLAlchemyError as e:
             db.rollback()
             logger.error("item %s: provisional db registration failed", item_id)

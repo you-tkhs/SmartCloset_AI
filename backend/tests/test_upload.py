@@ -12,6 +12,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 import app.database as database_module
 import app.main as main_module
+import app.routers.upload as upload_module
 from app.config import settings
 from app.database import get_db
 from app.models.clothing_item import ClothingItem
@@ -271,10 +272,20 @@ def _override_get_db_failing_commit(fail_on_call: int):
     return _override
 
 
+def _fake_no_mask_segment_result() -> SegmentResult:
+    return SegmentResult(rgba=None, mask=None, yolo_result=None, info=None, status="no_mask")
+
+
 def _upload_tops_jpg(client, idempotency_key: str | None):
     headers = {"Idempotency-Key": idempotency_key} if idempotency_key is not None else {}
     with open(FIXTURES_DIR / "tops.jpg", "rb") as f:
         return client.post("/api/upload", files={"file": ("tops.jpg", f, "image/jpeg")}, headers=headers)
+
+
+def _upload_shoes_jpg(client, idempotency_key: str | None):
+    headers = {"Idempotency-Key": idempotency_key} if idempotency_key is not None else {}
+    with open(FIXTURES_DIR / "shoes.jpg", "rb") as f:
+        return client.post("/api/upload", files={"file": ("shoes.jpg", f, "image/jpeg")}, headers=headers)
 
 
 def test_upload_happy_path_returns_202_then_completes(client, monkeypatch):
@@ -373,3 +384,94 @@ def test_upload_malformed_idempotency_key_returns_422(client):
 
     assert response.status_code == 422
     assert response.json()["error_code"] == "validation_error"
+
+
+def test_upload_idempotency_key_resend_while_processing_returns_202_without_new_record(client, monkeypatch):
+    monkeypatch.setattr(upload_module, "run_pipeline_for_item", lambda item_id: None)
+    key = str(uuid.uuid4())
+
+    first = _upload_tops_jpg(client, key)
+    assert first.status_code == 202
+    item_id = first.json()["item_id"]
+
+    second = _upload_tops_jpg(client, key)
+
+    assert second.status_code == 202
+    body = second.json()
+    assert body["item_id"] == item_id
+    assert body["status"] == "processing"
+
+    db = database_module.SessionLocal()
+    count = db.query(ClothingItem).count()
+    db.close()
+    assert count == 1
+
+
+def test_upload_idempotency_key_resend_while_completed_returns_200(client, monkeypatch):
+    monkeypatch.setattr(pipeline_service, "segment_item", lambda model, path, conf: _fake_success_segment_result())
+    monkeypatch.setattr(pipeline_service, "extract_metadata", lambda openai_client, path: _valid_metadata_dict())
+    key = str(uuid.uuid4())
+
+    first = _upload_tops_jpg(client, key)
+    item_id = first.json()["item_id"]
+
+    db = database_module.SessionLocal()
+    item = db.get(ClothingItem, item_id)
+    db.close()
+    assert item.status == "completed"
+
+    second = _upload_tops_jpg(client, key)
+
+    assert second.status_code == 200
+    body = second.json()
+    assert body["item_id"] == item_id
+    assert body["status"] == "completed"
+
+    db = database_module.SessionLocal()
+    count = db.query(ClothingItem).count()
+    db.close()
+    assert count == 1
+
+
+def test_upload_idempotency_key_resend_while_failed_returns_200_with_failure_reason(client, monkeypatch):
+    monkeypatch.setattr(pipeline_service, "segment_item", lambda model, path, conf: _fake_no_mask_segment_result())
+    key = str(uuid.uuid4())
+
+    first = _upload_tops_jpg(client, key)
+    item_id = first.json()["item_id"]
+
+    db = database_module.SessionLocal()
+    item = db.get(ClothingItem, item_id)
+    db.close()
+    assert item.status == "failed"
+
+    second = _upload_tops_jpg(client, key)
+
+    assert second.status_code == 200
+    body = second.json()
+    assert body["item_id"] == item_id
+    assert body["status"] == "failed"
+    assert body["failure_reason"] == "no_mask"
+
+    db = database_module.SessionLocal()
+    count = db.query(ClothingItem).count()
+    db.close()
+    assert count == 1
+
+
+def test_upload_idempotency_key_conflict_with_different_image_returns_409(client, monkeypatch):
+    monkeypatch.setattr(upload_module, "run_pipeline_for_item", lambda item_id: None)
+    key = str(uuid.uuid4())
+
+    first = _upload_tops_jpg(client, key)
+    assert first.status_code == 202
+
+    second = _upload_shoes_jpg(client, key)
+
+    assert second.status_code == 409
+    assert second.json()["error_code"] == "idempotency_key_conflict"
+
+    db = database_module.SessionLocal()
+    count = db.query(ClothingItem).count()
+    db.close()
+    assert count == 1
