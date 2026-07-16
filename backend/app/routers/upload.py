@@ -1,5 +1,6 @@
 """design.md 6.2節・7.3節(17段階)・7.5節(補償処理)・7.7節(Idempotency-Key): POST /api/upload。"""
 
+import errno
 import logging
 import uuid
 from pathlib import Path
@@ -147,6 +148,14 @@ async def upload_item(
             db.delete(item)
             db.commit()
             storage_service.delete_item_files(item_id)
+            if e.errno == errno.ENOSPC:
+                logger.error("item %s: original image save failed (insufficient storage)", item_id)
+                raise _error(
+                    503,
+                    "insufficient_storage",
+                    "サーバーの空き容量が不足しています。しばらく待ってから再度お試しください。",
+                    True,
+                ) from e
             logger.error("item %s: original image save failed", item_id)
             raise _error(500, "storage_error", "画像の保存に失敗しました。再度お試しください。", True) from e
 

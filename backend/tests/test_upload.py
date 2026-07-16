@@ -355,6 +355,27 @@ def test_upload_original_save_failure_returns_500(client, monkeypatch):
     assert list((storage_dir / "originals").glob("*")) == []
 
 
+def test_upload_original_save_enospc_returns_503_insufficient_storage(client, monkeypatch):
+    def _raise_enospc(item_id, image, ext):
+        raise OSError(errno.ENOSPC, "no space left on device")
+
+    monkeypatch.setattr(storage_service, "save_original", _raise_enospc)
+
+    response = _upload_tops_jpg(client, str(uuid.uuid4()))
+
+    assert response.status_code == 503
+    assert response.json()["error_code"] == "insufficient_storage"
+
+    db = database_module.SessionLocal()
+    count = db.query(ClothingItem).count()
+    db.close()
+    assert count == 0
+
+    storage_dir = Path(settings.STORAGE_DIR)
+    assert list((storage_dir / "tmp").glob("*")) == []
+    assert list((storage_dir / "originals").glob("*")) == []
+
+
 def test_upload_path_commit_failure_returns_503(client, monkeypatch):
     monkeypatch.setitem(
         main_module.app.dependency_overrides, get_db, _override_get_db_failing_commit(fail_on_call=2)

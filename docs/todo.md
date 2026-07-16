@@ -444,6 +444,27 @@ chore(backend): プロジェクト雛形を作成
 - **push済みcommit hash**: `c1a9f78`
 - **備考**: セルフレビューで発見した差分2点を修正: (1) main.pyのlifespan順序をdesign.md 5.3節どおりに補正(`47c4826`)、(2) pipeline_serviceの想定外例外ハンドラにdesign.md 9.5節「例外時はrollback」を追加(`47c4826`)。あわせて14.1節のテスト観点表との差分確認で/api/upload経由の415・413・400ルーターレベルテストを追加(`b2044b2`)。他の確認項目(todo.mdのチェック・hash記入漏れ、API仕様、DBモデル/DDL、環境変数一覧、.gitignore、機密情報混入)は差分なし。全テスト実行(yolo込み)68 passed。phase/1-upload-pipelineをmainへfast-forward mergeしpush済み(`c1a9f78`)
 
+## T1-FIX: Phase 1 レビュー指摘の修正(Phase 2 開始前に実施)
+
+- **目的**: Phase 1マージ後のコードレビュー(Fable 5、2026-07-16)で見つかった設計不一致2件を修正する
+- **前提条件**: Phase 1完了(マージ済み)。作業は `phase/2-items-crud` ブランチの最初のコミットとして行う
+- **変更対象ファイル**: `backend/app/routers/upload.py`、`backend/app/services/llm_service.py`、`backend/tests/test_upload.py`、`backend/tests/test_services.py`
+- **実装内容**:
+  - [x] **(1) 原画像正式保存時のENOSPCを503にする**: `routers/upload.py` 手順13の `except OSError` 内で `e.errno == errno.ENOSPC` を判定し、該当時は 503 `insufficient_storage`(retryable: true)を返す(design.md 7.8節「正式保存時のENOSPCを捕捉→503」。現状は一律500 `storage_error`)。補償処理(レコード削除+ファイル削除)は両分岐で維持。テスト追加: `save_original` をモックで `OSError(errno.ENOSPC)` にして503を確認
+  - [x] **(2) LLMの非リトライ系エラーを `llm_error` に分類する**: `llm_service.extract_metadata()` を修正: ①先頭で `client is None` なら即 `LlmServiceError`(WARNINGログ「OPENAI_API_KEY未設定」)、②リトライ対象外の `openai.OpenAIError`(AuthenticationError, BadRequestError等)を捕捉し、リトライせず即 `LlmServiceError` を送出(design.md 8.3節「LLM失敗は呼び出し元でllm_errorに変換」。現状はpipelineのbroad exceptに落ちて `internal_error` になり、18.2節のllm_error率モニタリングが不正確になる)。テスト追加: client=None と AuthenticationError(モック)の両方で failure_reason=`llm_error` を確認
+- **記録のみ(修正不要の観察事項)**:
+  - セマフォ待機が `PROCESSING_STALE_MINUTES` を超えると待機中アイテムがlazy検出で `processing_interrupted` に誤判定されうる(status ガードにより二重処理は起きない。シングルユーザーでは実質発生しない。将来対策: セマフォ取得直後に `updated_at` をタッチ)
+  - 素のHTTPException(未定義ルート404等)が `error_code=internal_error / retryable=true` にマップされる(main.py。実害小)
+  - 例外ハンドラ経由の500応答にCORSヘッダが付かない(FastAPI既知挙動。本番は同一オリジンのため無関係)
+- **影響範囲**: upload API(エラー分類のみ)、pipeline失敗時のfailure_reason分類
+- **完了条件**: 追加テスト含む全テストgreen
+- **検証コマンド**: `cd backend && python -m pytest -m "not yolo" -q`
+- **想定される正常結果**: all passed(既存68件+追加分)
+- **推奨コミットメッセージ**: `fix(upload): ENOSPCとLLMエラーの分類をdesign.mdに整合`
+- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [ ] / push済み [ ]
+- **commit hash**: ______
+- **備考**: design.md本体の変更は不要(実装を設計に合わせる修正)。全テスト実行: `not yolo`で66 passed(既存63件+追加3件)、yolo込み71 passed
+
 # Phase 2: items CRUD(ブランチ: `phase/2-items-crud`)
 
 **ゴール**: 一覧・詳細・手動補正・削除がAPIで完結する。

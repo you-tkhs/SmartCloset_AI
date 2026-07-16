@@ -11,7 +11,7 @@ import logging
 import time
 from pathlib import Path
 
-from openai import APIConnectionError, APITimeoutError, InternalServerError, OpenAI, RateLimitError
+from openai import APIConnectionError, APITimeoutError, InternalServerError, OpenAI, OpenAIError, RateLimitError
 
 from app.config import settings
 from app.prompts.metadata_prompt import METADATA_JSON_SCHEMA, METADATA_PROMPT
@@ -79,7 +79,13 @@ def extract_metadata(client: OpenAI, image_path: Path) -> dict:
 
     OpenAI呼び出しはOPENAI_MAX_RETRIES回まで指数バックオフ(1秒→2秒)でリトライする。
     リトライ後も失敗した場合は LlmServiceError を送出する。
+    clientが未設定(OPENAI_API_KEY未設定)の場合、およびリトライ対象外の
+    OpenAIError(認証エラー等)が発生した場合は、リトライせず即座にLlmServiceErrorを送出する。
     """
+    if client is None:
+        logger.warning("OpenAI client is not configured (OPENAI_API_KEY unset)")
+        raise LlmServiceError("openai client not configured")
+
     base64_image = _image_to_base64(image_path)
     delay = _INITIAL_RETRY_DELAY_SECONDS
     last_error: Exception | None = None
@@ -118,6 +124,9 @@ def extract_metadata(client: OpenAI, image_path: Path) -> dict:
                 time.sleep(delay)
                 delay *= 2
             continue
+        except OpenAIError as e:
+            logger.warning("OpenAI API call failed with non-retryable error: %s", type(e).__name__)
+            raise LlmServiceError("non-retryable OpenAI API error") from e
 
         data = parse_json_safely(response.choices[0].message.content)
         if _is_valid_metadata(data):

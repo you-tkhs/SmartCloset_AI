@@ -8,7 +8,7 @@ from unittest.mock import MagicMock
 import httpx
 import numpy as np
 import pytest
-from openai import APIConnectionError
+from openai import APIConnectionError, AuthenticationError
 from PIL import Image
 from sqlalchemy.orm import sessionmaker
 from ultralytics import YOLO
@@ -237,6 +237,27 @@ def test_llm_extract_metadata_unrecoverable_json_retries_then_raises(tmp_path, m
         extract_metadata(client, image_path)
 
     assert client.chat.completions.create.call_count == settings.OPENAI_MAX_RETRIES + 1
+
+
+def test_llm_extract_metadata_none_client_raises_immediately_without_retry():
+    with pytest.raises(LlmServiceError):
+        extract_metadata(None, Path("unused.png"))
+
+
+def test_llm_extract_metadata_non_retryable_error_raises_immediately_without_retry(tmp_path, monkeypatch):
+    monkeypatch.setattr(llm_service.time, "sleep", lambda seconds: None)
+    image_path = tmp_path / "img.png"
+    image_path.write_bytes(b"fake-image-bytes")
+
+    request = httpx.Request("POST", "https://api.openai.com/v1/chat/completions")
+    response = httpx.Response(401, request=request)
+    client = MagicMock()
+    client.chat.completions.create.side_effect = AuthenticationError("invalid api key", response=response, body=None)
+
+    with pytest.raises(LlmServiceError):
+        extract_metadata(client, image_path)
+
+    assert client.chat.completions.create.call_count == 1
 
 
 @pytest.fixture
