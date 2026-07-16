@@ -370,8 +370,8 @@ chore(backend): プロジェクト雛形を作成
 - **想定される正常結果**: all passed
 - **想定される異常結果**: -
 - **推奨コミットメッセージ**: `feat(upload): add idempotency key based duplicate prevention`
-- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [ ] / push済み [ ]
-- **commit hash**: ______
+- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [x] / push済み [ ]
+- **commit hash**: `a8177dd`
 - **備考**: 画像ハッシュによる内容ベース重複判定は将来拡張(実装しない)
 
 ## T1-8: status API+stale processing復旧
