@@ -1,13 +1,37 @@
+import json
 from pathlib import Path
+from unittest.mock import MagicMock
 
+import httpx
 import pytest
+from openai import APIConnectionError
 from ultralytics import YOLO
 
 from app.config import settings
-from app.services import storage_service
+from app.services import llm_service, storage_service
+from app.services.llm_service import LlmServiceError, extract_metadata
 from app.services.yolo_service import segment_item
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
+
+
+def _fake_openai_response(content: str):
+    response = MagicMock()
+    response.choices = [MagicMock(message=MagicMock(content=content))]
+    return response
+
+
+def _valid_metadata_json() -> str:
+    return json.dumps(
+        {
+            "category": "tops",
+            "color_primary": "白",
+            "color_secondary": None,
+            "pattern": "無地",
+            "material": "コットン",
+            "silhouette": "ゆったりしたシルエット",
+        }
+    )
 
 
 @pytest.fixture(scope="module")
@@ -144,3 +168,62 @@ def test_segment_item_missing_path_image_read_error(yolo_model):
     assert result.mask is None
     assert result.yolo_result is None
     assert result.info is None
+
+
+def test_llm_extract_metadata_success(tmp_path, monkeypatch):
+    monkeypatch.setattr(llm_service.time, "sleep", lambda seconds: None)
+    image_path = tmp_path / "img.png"
+    image_path.write_bytes(b"fake-image-bytes")
+
+    client = MagicMock()
+    client.chat.completions.create.return_value = _fake_openai_response(_valid_metadata_json())
+
+    result = extract_metadata(client, image_path)
+
+    assert result["category"] == "tops"
+    assert result["color_secondary"] is None
+    assert client.chat.completions.create.call_count == 1
+
+
+def test_llm_extract_metadata_retries_then_raises_on_api_failure(tmp_path, monkeypatch):
+    monkeypatch.setattr(llm_service.time, "sleep", lambda seconds: None)
+    image_path = tmp_path / "img.png"
+    image_path.write_bytes(b"fake-image-bytes")
+
+    request = httpx.Request("POST", "https://api.openai.com/v1/chat/completions")
+    client = MagicMock()
+    client.chat.completions.create.side_effect = APIConnectionError(request=request)
+
+    with pytest.raises(LlmServiceError):
+        extract_metadata(client, image_path)
+
+    assert client.chat.completions.create.call_count == settings.OPENAI_MAX_RETRIES + 1
+
+
+def test_llm_extract_metadata_recovers_from_code_fenced_json(tmp_path, monkeypatch):
+    monkeypatch.setattr(llm_service.time, "sleep", lambda seconds: None)
+    image_path = tmp_path / "img.png"
+    image_path.write_bytes(b"fake-image-bytes")
+
+    fenced = f"```json\n{_valid_metadata_json()}\n```"
+    client = MagicMock()
+    client.chat.completions.create.return_value = _fake_openai_response(fenced)
+
+    result = extract_metadata(client, image_path)
+
+    assert result["category"] == "tops"
+    assert client.chat.completions.create.call_count == 1
+
+
+def test_llm_extract_metadata_unrecoverable_json_retries_then_raises(tmp_path, monkeypatch):
+    monkeypatch.setattr(llm_service.time, "sleep", lambda seconds: None)
+    image_path = tmp_path / "img.png"
+    image_path.write_bytes(b"fake-image-bytes")
+
+    client = MagicMock()
+    client.chat.completions.create.return_value = _fake_openai_response("not valid json at all")
+
+    with pytest.raises(LlmServiceError):
+        extract_metadata(client, image_path)
+
+    assert client.chat.completions.create.call_count == settings.OPENAI_MAX_RETRIES + 1

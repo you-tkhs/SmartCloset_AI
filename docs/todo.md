@@ -286,16 +286,16 @@ chore(backend): プロジェクト雛形を作成
   - `parse_json_safely()` をフォールバックとして移植(コードブロック除去+キー補完)
   - リトライ: 接続エラー・5xx・レートリミット・JSON不正で1秒→2秒の指数バックオフ、最大 `OPENAI_MAX_RETRIES` 回。失敗で `LlmServiceError`
 - **サブタスク(異常系。OpenAIクライアントはモック)**:
-  - [ ] OpenAI API失敗(例外)→ 2回リトライ後に LlmServiceError
-  - [ ] OpenAI JSON不正(コードブロック付き応答)→ parse_json_safelyで回復
-  - [ ] JSON不正(回復不能)→ リトライ→ LlmServiceError
+  - [x] OpenAI API失敗(例外)→ 2回リトライ後に LlmServiceError
+  - [x] OpenAI JSON不正(コードブロック付き応答)→ parse_json_safelyで回復
+  - [x] JSON不正(回復不能)→ リトライ→ LlmServiceError
 - **影響範囲**: pipeline_service
 - **完了条件**: モックテストgreen
 - **検証コマンド**: `cd backend && python -m pytest tests/test_services.py -q -k llm`
 - **想定される正常結果**: all passed
 - **想定される異常結果**: -
 - **推奨コミットメッセージ**: `feat(pipeline): port metadata extraction with strict json schema and retry`
-- **チェック**: 実装済み [ ] / テスト済み [ ] / commit済み [ ] / push済み [ ]
+- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [ ] / push済み [ ]
 - **commit hash**: ______
 - **備考**: プロンプト文言は付録B.1と一字一句一致させる(正本: `docs/prompt_design.md`)
 
