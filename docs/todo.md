@@ -212,21 +212,26 @@ chore(backend): プロジェクト雛形を作成
   - 独自例外 `UnsupportedMediaTypeError` / `InvalidImageError`(メッセージに絶対パスを含めない)
   - fixture作成: `tops.jpg` `shoes.jpg` `no_clothing.jpg`(実画像。`ai_prototype/development/input/` や `ai_prototype/Poc/test_images/` から適切な3枚をコピーしてよい)、`fake.jpg`(テキスト)、`broken.png`(切断PNG)、`huge_pixels.png`(Pillowで生成)
 - **サブタスク(異常系。各1テスト以上)**:
-  - [ ] 不正拡張子(.gif等)→ UnsupportedMediaTypeError
-  - [ ] MIMEタイプ不一致・偽装jpg(fake.jpg)→ UnsupportedMediaTypeError
-  - [ ] 壊れた画像(broken.png)→ InvalidImageError
-  - [ ] MAX_IMAGE_PIXELS超過(huge_pixels.png)→ InvalidImageError
-  - [ ] EXIF Orientation付きJPEGが正しく回転される
-  - [ ] CMYK JPEGがRGBに変換される
+  - [x] 不正拡張子(.gif等)→ UnsupportedMediaTypeError
+  - [x] MIMEタイプ不一致・偽装jpg(fake.jpg)→ UnsupportedMediaTypeError
+  - [x] 壊れた画像(broken.png)→ InvalidImageError
+  - [x] MAX_IMAGE_PIXELS超過(huge_pixels.png)→ InvalidImageError
+  - [x] EXIF Orientation付きJPEGが正しく回転される
+  - [x] CMYK JPEGがRGBに変換される
 - **影響範囲**: uploadルーター(T1-6)
 - **完了条件**: 上記サブタスク含む単体テストがgreen
 - **検証コマンド**: `cd backend && python -m pytest tests/test_upload.py -q -k validation`
 - **想定される正常結果**: all passed
 - **想定される異常結果**: -
 - **推奨コミットメッセージ**: `feat(upload): add image validation and normalization service`
-- **チェック**: 実装済み [ ] / テスト済み [ ] / commit済み [ ] / push済み [ ]
+- **レビュー指摘(修正済み)**:
+  - [x] **バグ**: `_open_and_decode()` の except タプルに `Image.DecompressionBombWarning` を追加した。テスト追加: `test_validation_rejects_pixels_in_bomb_warning_band`(7,000×7,000pxでInvalidImageErrorになることを確認)
+  - [x] **改善**: `InvalidImageError` のメッセージから `{e}` を除去し固定メッセージにした(原因は `from e` 連鎖で保持)。テスト追加: `test_validation_unidentifiable_image_error_excludes_absolute_path`
+  - [x] **環境整備**: ルート `.gitignore` に `__pycache__/` と `*.pyc` を追加
+  - [x] 修正後に `pytest -m "not yolo" -q` を再実行してgreenを確認(23 passed)
+- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [ ] / push済み [ ]
 - **commit hash**: ______
-- **備考**: 検証順序は design.md 7.3節の手順5〜10と一致させる
+- **備考**: 検証順序は design.md 7.3節の手順5〜10と一致させる。no_clothing.jpgは実写真の代わりにPIL生成の風景風合成画像を使用(ユーザー承認済み、T1-3で使用予定)。EXIF Orientation・CMYKテストはtmp_path上でPillow生成した個別fixtureで検証(fixtures/配下には追加していない)。レビュー指摘はFable 5によるコードレビュー(2026-07-16)由来
 
 ## T1-2: チャンク受信とtmp保存
 

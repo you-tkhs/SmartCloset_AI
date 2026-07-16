@@ -7,6 +7,10 @@
 # jupyter
 .ipynb_checkpoints/
 
+# python
+__pycache__/
+*.pyc
+
 # datasetは全部無視
 dataset/
 
