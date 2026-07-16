@@ -2,6 +2,7 @@ import asyncio
 import errno
 import io
 import uuid
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -475,3 +476,117 @@ def test_upload_idempotency_key_conflict_with_different_image_returns_409(client
     count = db.query(ClothingItem).count()
     db.close()
     assert count == 1
+
+
+def _make_processing_item(item_id: str, minutes_old: int) -> tuple[Path, Path, Path]:
+    """design.md 8.6節検証用: 生成物込みのprocessingレコードをupdated_atを指定して直接作成する。"""
+    original = storage_service.original_path(item_id, "jpg")
+    original.write_bytes(b"fake original")
+    transparent = storage_service.transparent_path(item_id)
+    transparent.write_bytes(b"fake transparent")
+    mask = storage_service.mask_path(item_id)
+    mask.write_bytes(b"fake mask")
+
+    updated_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=minutes_old)
+    db = database_module.SessionLocal()
+    item = ClothingItem(
+        id=item_id,
+        status="processing",
+        idempotency_key=str(uuid.uuid4()),
+        upload_sha256="a" * 64,
+        original_image_path=str(original),
+        transparent_image_path=str(transparent),
+        mask_image_path=str(mask),
+        updated_at=updated_at,
+    )
+    db.add(item)
+    db.commit()
+    db.close()
+    return original, transparent, mask
+
+
+def test_recover_stale_processing_marks_old_processing_as_failed_interrupted(client):
+    item_id = str(uuid.uuid4())
+    original, transparent, mask = _make_processing_item(item_id, settings.PROCESSING_STALE_MINUTES + 1)
+
+    db = database_module.SessionLocal()
+    pipeline_service.recover_stale_processing(db)
+    db.close()
+
+    db = database_module.SessionLocal()
+    item = db.get(ClothingItem, item_id)
+    db.close()
+
+    assert item.status == "failed"
+    assert item.failure_reason == "processing_interrupted"
+    assert original.exists()
+    assert not transparent.exists()
+    assert not mask.exists()
+
+
+def test_status_api_lazy_detects_stale_processing_as_failed_interrupted(client):
+    item_id = str(uuid.uuid4())
+    original, transparent, mask = _make_processing_item(item_id, settings.PROCESSING_STALE_MINUTES + 1)
+
+    response = client.get(f"/api/items/{item_id}/status")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["item_id"] == item_id
+    assert body["status"] == "failed"
+    assert body["failure_reason"] == "processing_interrupted"
+
+    db = database_module.SessionLocal()
+    item = db.get(ClothingItem, item_id)
+    db.close()
+    assert item.status == "failed"
+    assert original.exists()
+    assert not transparent.exists()
+    assert not mask.exists()
+
+
+def test_recover_stale_processing_leaves_recent_processing_untouched(client):
+    item_id = str(uuid.uuid4())
+    _make_processing_item(item_id, settings.PROCESSING_STALE_MINUTES - 1)
+
+    db = database_module.SessionLocal()
+    pipeline_service.recover_stale_processing(db)
+    db.close()
+
+    db = database_module.SessionLocal()
+    item = db.get(ClothingItem, item_id)
+    db.close()
+    assert item.status == "processing"
+
+
+def test_recover_stale_processing_does_not_overwrite_internal_error_failures(client, monkeypatch):
+    def _raise(model, path, conf):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(pipeline_service, "segment_item", _raise)
+
+    response = _upload_tops_jpg(client, str(uuid.uuid4()))
+    item_id = response.json()["item_id"]
+
+    db = database_module.SessionLocal()
+    item = db.get(ClothingItem, item_id)
+    db.close()
+    assert item.status == "failed"
+    assert item.failure_reason == "internal_error"
+
+    db = database_module.SessionLocal()
+    pipeline_service.recover_stale_processing(db)
+    db.close()
+
+    db = database_module.SessionLocal()
+    item = db.get(ClothingItem, item_id)
+    db.close()
+    assert item.status == "failed"
+    assert item.failure_reason == "internal_error"
+
+
+def test_status_api_returns_404_for_missing_item(client):
+    response = client.get(f"/api/items/{uuid.uuid4()}/status")
+
+    assert response.status_code == 404
+    assert response.json()["error_code"] == "item_not_found"

@@ -11,9 +11,10 @@ from openai import OpenAI
 from ultralytics import YOLO
 
 from app.config import settings
-from app.database import init_db
-from app.routers import health, upload
+from app.database import create_session, init_db
+from app.routers import health, items, upload
 from app.services import storage_service
+from app.services.pipeline_service import recover_stale_processing
 
 logging.basicConfig(
     level=logging.INFO,
@@ -26,6 +27,12 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     storage_service.init_storage()
     init_db()
+
+    db = create_session()
+    try:
+        recover_stale_processing(db)
+    finally:
+        db.close()
 
     model_path = Path(settings.MODEL_PATH)
     if not model_path.exists():
@@ -100,3 +107,4 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 
 app.include_router(health.router)
 app.include_router(upload.router)
+app.include_router(items.router)

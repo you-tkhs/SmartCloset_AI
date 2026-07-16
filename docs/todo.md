@@ -383,17 +383,17 @@ chore(backend): プロジェクト雛形を作成
   - `GET /api/items/{id}/status`: 404対応+**lazy stale検出**(processingかつupdated_atがPROCESSING_STALE_MINUTES超過→その場でfailed/processing_interruptedに更新+生成物削除)
   - `recover_stale_processing(db)`: 起動時に閾値超過のprocessingを一括failed化(**failure_reason=processing_interrupted**、生成物削除、原画像保持、item_id+経過時間をWARNINGログ)。lifespanから呼ぶ
 - **サブタスク**:
-  - [ ] BackgroundTasks中断シミュレーション: processingレコードをupdated_at=古い時刻で直接作成→起動時復旧でfailed/processing_interruptedになる
-  - [ ] lazy検出: 同様のレコードにstatus APIでアクセス→failed/processing_interruptedが返る
-  - [ ] 閾値未満のprocessingは変更されない
-  - [ ] processing_interruptedとinternal_errorが区別される(internal_errorはコード内例外時のみ)
+  - [x] BackgroundTasks中断シミュレーション: processingレコードをupdated_at=古い時刻で直接作成→起動時復旧でfailed/processing_interruptedになる
+  - [x] lazy検出: 同様のレコードにstatus APIでアクセス→failed/processing_interruptedが返る
+  - [x] 閾値未満のprocessingは変更されない
+  - [x] processing_interruptedとinternal_errorが区別される(internal_errorはコード内例外時のみ)
 - **影響範囲**: フロントエンドのポーリング・エラーメッセージ
 - **完了条件**: サブタスクgreen
 - **検証コマンド**: `cd backend && python -m pytest tests/test_upload.py -q -k stale`
 - **想定される正常結果**: all passed
 - **想定される異常結果**: -
 - **推奨コミットメッセージ**: `feat(pipeline): recover interrupted processing records`
-- **チェック**: 実装済み [ ] / テスト済み [ ] / commit済み [ ] / push済み [ ]
+- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [ ] / push済み [ ]
 - **commit hash**: ______
 - **備考**: ポーリングのUIタイムアウトはサーバーstatusを変更しない(design.md 12.5節)
 

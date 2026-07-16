@@ -8,6 +8,7 @@ Session/UploadFile/モデルオブジェクトは受け取らない(design.md 2.
 import logging
 import threading
 import time
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from PIL import Image
@@ -33,6 +34,39 @@ def mark_item_failed(db: Session, item: ClothingItem, reason: str) -> None:
     db.commit()
     storage_service.delete_generated_files(item.id)
     logger.error("item %s: failed (failure_reason=%s)", item.id, reason)
+
+
+def _stale_threshold() -> datetime:
+    # updated_at はSQLiteから素朴なUTC(tzinfoなし)で戻るため、比較側も同じ形に揃える。
+    return datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=settings.PROCESSING_STALE_MINUTES)
+
+
+def _recover_stale_item(db: Session, item: ClothingItem) -> None:
+    elapsed = datetime.now(timezone.utc).replace(tzinfo=None) - item.updated_at
+    item.status = "failed"
+    item.failure_reason = "processing_interrupted"
+    db.commit()
+    storage_service.delete_generated_files(item.id)
+    logger.warning("item %s: processing interrupted (elapsed=%.1fs)", item.id, elapsed.total_seconds())
+
+
+def recover_item_if_stale(db: Session, item: ClothingItem) -> bool:
+    """design.md 8.6節(b): lazy検出。stale状態のprocessingを復旧した場合Trueを返す。"""
+    if item.status != "processing" or item.updated_at >= _stale_threshold():
+        return False
+    _recover_stale_item(db, item)
+    return True
+
+
+def recover_stale_processing(db: Session) -> None:
+    """design.md 8.6節(a): 起動時に閾値超過のprocessingを一括failed(processing_interrupted)化する。"""
+    stale_items = (
+        db.query(ClothingItem)
+        .filter(ClothingItem.status == "processing", ClothingItem.updated_at < _stale_threshold())
+        .all()
+    )
+    for item in stale_items:
+        _recover_stale_item(db, item)
 
 
 def _resize_for_inference(original_path: Path, work_path: Path, long_side: int) -> Path:
