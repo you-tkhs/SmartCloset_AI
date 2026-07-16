@@ -461,8 +461,8 @@ chore(backend): プロジェクト雛形を作成
 - **検証コマンド**: `cd backend && python -m pytest -m "not yolo" -q`
 - **想定される正常結果**: all passed(既存68件+追加分)
 - **推奨コミットメッセージ**: `fix(upload): ENOSPCとLLMエラーの分類をdesign.mdに整合`
-- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [ ] / push済み [ ]
-- **commit hash**: ______
+- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [x] / push済み [ ]
+- **commit hash**: `be35a4d`
 - **備考**: design.md本体の変更は不要(実装を設計に合わせる修正)。全テスト実行: `not yolo`で66 passed(既存63件+追加3件)、yolo込み71 passed
 
 # Phase 2: items CRUD(ブランチ: `phase/2-items-crud`)
