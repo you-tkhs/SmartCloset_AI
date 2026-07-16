@@ -1,7 +1,18 @@
 from pathlib import Path
 
+import pytest
+from ultralytics import YOLO
+
 from app.config import settings
 from app.services import storage_service
+from app.services.yolo_service import segment_item
+
+FIXTURES_DIR = Path(__file__).parent / "fixtures"
+
+
+@pytest.fixture(scope="module")
+def yolo_model():
+    return YOLO(settings.MODEL_PATH)
 
 
 def test_storage_init_creates_directories(tmp_path, monkeypatch):
@@ -89,3 +100,47 @@ def test_storage_to_public_url_transparent():
 
 def test_storage_to_public_url_non_public_returns_none():
     assert storage_service.to_public_url("storage/masks/abc_mask.png") is None
+
+
+@pytest.mark.yolo
+def test_segment_item_tops_jpg_success(yolo_model):
+    result = segment_item(yolo_model, FIXTURES_DIR / "tops.jpg", settings.CONF_THRES)
+
+    assert result.status == "success"
+    assert result.rgba is not None
+    assert result.mask is not None
+    assert result.info is not None
+    assert "pred_class" in result.info
+    assert "confidence" in result.info
+    assert "num_instances" in result.info
+    assert "all_pred_classes" in result.info
+    assert "all_confidences" in result.info
+
+
+@pytest.mark.yolo
+def test_segment_item_shoes_jpg_has_at_least_one_instance(yolo_model):
+    result = segment_item(yolo_model, FIXTURES_DIR / "shoes.jpg", settings.CONF_THRES)
+
+    assert result.status == "success"
+    assert result.info["num_instances"] >= 1
+
+
+@pytest.mark.yolo
+def test_segment_item_no_clothing_jpg_no_mask(yolo_model):
+    result = segment_item(yolo_model, FIXTURES_DIR / "no_clothing.jpg", settings.CONF_THRES)
+
+    assert result.status == "no_mask"
+    assert result.rgba is None
+    assert result.mask is None
+    assert result.info is None
+
+
+@pytest.mark.yolo
+def test_segment_item_missing_path_image_read_error(yolo_model):
+    result = segment_item(yolo_model, FIXTURES_DIR / "does_not_exist.jpg", settings.CONF_THRES)
+
+    assert result.status == "image_read_error"
+    assert result.rgba is None
+    assert result.mask is None
+    assert result.yolo_result is None
+    assert result.info is None
