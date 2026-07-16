@@ -12,7 +12,7 @@ from ultralytics import YOLO
 
 from app.config import settings
 from app.database import init_db
-from app.routers import health
+from app.routers import health, upload
 from app.services import storage_service
 
 logging.basicConfig(
@@ -99,3 +99,4 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 
 
 app.include_router(health.router)
+app.include_router(upload.router)

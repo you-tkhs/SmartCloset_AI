@@ -52,6 +52,16 @@ def original_path(item_id: str, ext: str) -> Path:
     return _storage_dir() / "originals" / f"{item_id}_original.{ext}"
 
 
+def save_original(item_id: str, image: Image.Image, ext: str) -> Path:
+    """design.md 7.3節手順13: 検証・正規化済みの画像を原画像として正式保存する。"""
+    path = original_path(item_id, ext)
+    if ext == "jpg":
+        image.save(path, format="JPEG", quality=95)
+    else:
+        image.save(path, format="PNG")
+    return path
+
+
 def transparent_path(item_id: str) -> Path:
     return _storage_dir() / "transparent" / f"{item_id}_transparent.png"
 

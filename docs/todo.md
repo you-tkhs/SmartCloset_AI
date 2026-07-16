@@ -338,20 +338,20 @@ chore(backend): プロジェクト雛形を作成
   - tmpは **finallyで必ず削除**
   - BackgroundTasksディスパッチは1箇所に隔離(`background_tasks.add_task(run_pipeline_for_item, item_id)`。Celery移行点コメントを付す)
 - **サブタスク(異常系。依存関数をモックで失敗させる)**:
-  - [ ] DB仮登録失敗 → 503 database_error、tmp・originalsに何も残らない
-  - [ ] 正式保存失敗 → 500 storage_error、DBレコードが存在しない
-  - [ ] パス反映コミット失敗 → 503、レコード・原画像が残らない
-  - [ ] 正常系でも異常系でもtmpが残らない(テスト後に `storage/tmp` が空)
-  - [ ] Idempotency-Keyヘッダー欠落 → 422 validation_error
+  - [x] DB仮登録失敗 → 503 database_error、tmp・originalsに何も残らない
+  - [x] 正式保存失敗 → 500 storage_error、DBレコードが存在しない
+  - [x] パス反映コミット失敗 → 503、レコード・原画像が残らない
+  - [x] 正常系でも異常系でもtmpが残らない(テスト後に `storage/tmp` が空)
+  - [x] Idempotency-Keyヘッダー欠落 → 422 validation_error
 - **影響範囲**: フロントエンド、status API
 - **完了条件**: 正常系(202→BackgroundTasks同期実行→completed)+サブタスクgreen
 - **検証コマンド**: `cd backend && python -m pytest tests/test_upload.py -q`
 - **想定される正常結果**: all passed
 - **想定される異常結果**: -
 - **推奨コミットメッセージ**: `feat(upload): add validated image upload flow` / `fix(storage): clean files after persistence failure`(補償は分けてもよい)
-- **チェック**: 実装済み [ ] / テスト済み [ ] / commit済み [ ] / push済み [ ]
+- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [ ] / push済み [ ]
 - **commit hash**: ______
-- **備考**: 202を返す条件はdesign.md 6.2節の定義に厳密に従う
+- **備考**: 202を返す条件はdesign.md 6.2節の定義に厳密に従う。既存キー照合(T1-7)はまだ未実装のため、同一キー再送は現時点ではUNIQUE制約違反=database_errorになる(T1-7で解消)
 
 ## T1-7: Idempotency-Key(二重登録防止)
 

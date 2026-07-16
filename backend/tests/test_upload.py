@@ -1,18 +1,27 @@
 import asyncio
 import errno
 import io
+import uuid
 from pathlib import Path
+from unittest.mock import MagicMock
 
+import numpy as np
 import pytest
 from PIL import Image
+from sqlalchemy.exc import SQLAlchemyError
 
+import app.database as database_module
+import app.main as main_module
 from app.config import settings
-from app.services import storage_service
+from app.database import get_db
+from app.models.clothing_item import ClothingItem
+from app.services import pipeline_service, storage_service
 from app.services.image_validation_service import (
     InvalidImageError,
     UnsupportedMediaTypeError,
     validate_and_normalize,
 )
+from app.services.yolo_service import SegmentResult
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
@@ -210,3 +219,157 @@ def test_chunk_upload_succeeds_and_computes_sha256(storage_env):
 def test_no_bulk_file_read_in_storage_service():
     source = Path(storage_service.__file__).read_text()
     assert ".read()" not in source
+
+
+def _fake_success_segment_result() -> SegmentResult:
+    rgba = np.zeros((10, 10, 4), dtype=np.uint8)
+    rgba[:, :, 3] = 255
+    mask = np.full((10, 10), 255, dtype=np.uint8)
+    yolo_result = MagicMock()
+    yolo_result.plot.return_value = np.zeros((10, 10, 3), dtype=np.uint8)
+    info = {
+        "pred_class": "tops",
+        "confidence": 0.9,
+        "num_instances": 1,
+        "all_pred_classes": ["tops"],
+        "all_confidences": [0.9],
+    }
+    return SegmentResult(rgba=rgba, mask=mask, yolo_result=yolo_result, info=info, status="success")
+
+
+def _valid_metadata_dict() -> dict:
+    return {
+        "category": "tops",
+        "color_primary": "白",
+        "color_secondary": None,
+        "pattern": "無地",
+        "material": "コットン",
+        "silhouette": "ゆったりしたシルエット",
+    }
+
+
+def _override_get_db_failing_commit(fail_on_call: int):
+    """指定回数目のcommit()だけ失敗させるDependsのオーバーライドを作る。"""
+    call_state = {"count": 0}
+
+    def _override():
+        db = database_module.SessionLocal()
+        real_commit = db.commit
+
+        def _commit():
+            call_state["count"] += 1
+            if call_state["count"] == fail_on_call:
+                raise SQLAlchemyError("simulated commit failure")
+            real_commit()
+
+        db.commit = _commit
+        try:
+            yield db
+        finally:
+            db.close()
+
+    return _override
+
+
+def _upload_tops_jpg(client, idempotency_key: str | None):
+    headers = {"Idempotency-Key": idempotency_key} if idempotency_key is not None else {}
+    with open(FIXTURES_DIR / "tops.jpg", "rb") as f:
+        return client.post("/api/upload", files={"file": ("tops.jpg", f, "image/jpeg")}, headers=headers)
+
+
+def test_upload_happy_path_returns_202_then_completes(client, monkeypatch):
+    monkeypatch.setattr(pipeline_service, "segment_item", lambda model, path, conf: _fake_success_segment_result())
+    monkeypatch.setattr(pipeline_service, "extract_metadata", lambda openai_client, path: _valid_metadata_dict())
+
+    response = _upload_tops_jpg(client, str(uuid.uuid4()))
+
+    assert response.status_code == 202
+    body = response.json()
+    assert body["status"] == "processing"
+    item_id = body["item_id"]
+
+    db = database_module.SessionLocal()
+    item = db.get(ClothingItem, item_id)
+    db.close()
+
+    assert item is not None
+    assert item.status == "completed"
+    assert item.category == "tops"
+    assert item.original_image_path is not None
+    assert Path(item.original_image_path).exists()
+    assert list((Path(settings.STORAGE_DIR) / "tmp").glob("*")) == []
+
+
+def test_upload_provisional_registration_failure_returns_503(client, monkeypatch):
+    monkeypatch.setitem(
+        main_module.app.dependency_overrides, get_db, _override_get_db_failing_commit(fail_on_call=1)
+    )
+
+    response = _upload_tops_jpg(client, str(uuid.uuid4()))
+
+    assert response.status_code == 503
+    assert response.json()["error_code"] == "database_error"
+
+    db = database_module.SessionLocal()
+    count = db.query(ClothingItem).count()
+    db.close()
+    assert count == 0
+
+    storage_dir = Path(settings.STORAGE_DIR)
+    assert list((storage_dir / "tmp").glob("*")) == []
+    assert list((storage_dir / "originals").glob("*")) == []
+
+
+def test_upload_original_save_failure_returns_500(client, monkeypatch):
+    def _raise_oserror(item_id, image, ext):
+        raise OSError("disk write failed")
+
+    monkeypatch.setattr(storage_service, "save_original", _raise_oserror)
+
+    response = _upload_tops_jpg(client, str(uuid.uuid4()))
+
+    assert response.status_code == 500
+    assert response.json()["error_code"] == "storage_error"
+
+    db = database_module.SessionLocal()
+    count = db.query(ClothingItem).count()
+    db.close()
+    assert count == 0
+
+    storage_dir = Path(settings.STORAGE_DIR)
+    assert list((storage_dir / "tmp").glob("*")) == []
+    assert list((storage_dir / "originals").glob("*")) == []
+
+
+def test_upload_path_commit_failure_returns_503(client, monkeypatch):
+    monkeypatch.setitem(
+        main_module.app.dependency_overrides, get_db, _override_get_db_failing_commit(fail_on_call=2)
+    )
+
+    response = _upload_tops_jpg(client, str(uuid.uuid4()))
+
+    assert response.status_code == 503
+    assert response.json()["error_code"] == "database_error"
+
+    db = database_module.SessionLocal()
+    count = db.query(ClothingItem).count()
+    db.close()
+    assert count == 0
+
+    storage_dir = Path(settings.STORAGE_DIR)
+    assert list((storage_dir / "tmp").glob("*")) == []
+    assert list((storage_dir / "originals").glob("*")) == []
+
+
+def test_upload_missing_idempotency_key_returns_422(client):
+    response = _upload_tops_jpg(client, idempotency_key=None)
+
+    assert response.status_code == 422
+    assert response.json()["error_code"] == "validation_error"
+
+
+def test_upload_malformed_idempotency_key_returns_422(client):
+    response = _upload_tops_jpg(client, idempotency_key="not-a-uuid")
+
+    assert response.status_code == 422
+    assert response.json()["error_code"] == "validation_error"
