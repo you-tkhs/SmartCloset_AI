@@ -8,8 +8,10 @@ from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
+from fastapi.testclient import TestClient
 from PIL import Image
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import sessionmaker
 
 import app.database as database_module
 import app.main as main_module
@@ -590,3 +592,54 @@ def test_status_api_returns_404_for_missing_item(client):
 
     assert response.status_code == 404
     assert response.json()["error_code"] == "item_not_found"
+
+
+@pytest.fixture
+def yolo_client(tmp_path, monkeypatch):
+    """T1-10: 実YOLO重みを読み込む統合テスト用のTestClient。LLMはテスト側でモックする。"""
+    storage_dir = tmp_path / "storage"
+    data_dir = tmp_path / "data"
+    db_path = data_dir / "smartcloset.db"
+
+    monkeypatch.setattr(settings, "STORAGE_DIR", str(storage_dir))
+    monkeypatch.setattr(settings, "DATA_DIR", str(data_dir))
+    monkeypatch.setattr(settings, "DATABASE_URL", f"sqlite:///{db_path}")
+    monkeypatch.setattr(settings, "OPENAI_API_KEY", None)
+
+    test_engine = database_module.build_engine(settings.DATABASE_URL)
+    test_session_local = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+    monkeypatch.setattr(database_module, "engine", test_engine)
+    monkeypatch.setattr(database_module, "SessionLocal", test_session_local)
+
+    with TestClient(main_module.app) as test_client:
+        yield test_client
+
+
+@pytest.mark.yolo
+def test_upload_e2e_with_real_yolo_completes_with_six_attributes_and_transparent_png(yolo_client, monkeypatch):
+    metadata = _valid_metadata_dict()
+    monkeypatch.setattr(pipeline_service, "extract_metadata", lambda openai_client, path: metadata)
+
+    response = _upload_tops_jpg(yolo_client, str(uuid.uuid4()))
+    assert response.status_code == 202
+    item_id = response.json()["item_id"]
+
+    status_response = yolo_client.get(f"/api/items/{item_id}/status")
+    assert status_response.status_code == 200
+    assert status_response.json()["status"] == "completed"
+
+    db = database_module.SessionLocal()
+    item = db.get(ClothingItem, item_id)
+    db.close()
+
+    assert item.status == "completed"
+    assert item.category == metadata["category"]
+    assert item.color_primary == metadata["color_primary"]
+    assert item.color_secondary == metadata["color_secondary"]
+    assert item.pattern == metadata["pattern"]
+    assert item.material == metadata["material"]
+    assert item.silhouette == metadata["silhouette"]
+    assert item.yolo_pred_class is not None
+    assert item.num_instances >= 1
+    assert item.transparent_image_path is not None
+    assert Path(item.transparent_image_path).exists()

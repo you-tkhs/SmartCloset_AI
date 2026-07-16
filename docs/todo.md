@@ -428,9 +428,9 @@ chore(backend): プロジェクト雛形を作成
 - **想定される正常結果**: completed、`storage/transparent/{item_id}_transparent.png` が生成される
 - **想定される異常結果**: OPENAI_API_KEY設定済み環境なら実LLMでの動作確認も可(任意)
 - **推奨コミットメッセージ**: `test(upload): add end-to-end pipeline integration test`
-- **チェック**: 実装済み [ ] / テスト済み [ ] / commit済み [ ] / push済み [ ]
+- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [ ] / push済み [ ]
 - **commit hash**: ______
-- **備考**: ______
+- **備考**: pytest(`-m yolo`、実YOLO+モックLLM)に加え、ルートの.envのOPENAI_API_KEYを一時的にbackend/.envへコピーしuvicorn実起動+curlで実LLMでの動作も確認済み(completed、6属性・透過PNG実在を確認)。確認後にbackend/.env・storage/・data/は削除済み
 
 ## T1-SR: Phase 1 セルフレビューと完了処理
 
