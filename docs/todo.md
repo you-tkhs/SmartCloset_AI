@@ -413,8 +413,8 @@ chore(backend): プロジェクト雛形を作成
 - **想定される正常結果**: all passed
 - **想定される異常結果**: -
 - **推奨コミットメッセージ**: `test(security): verify static file exposure is limited`
-- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [ ] / push済み [ ]
-- **commit hash**: ______
+- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [x] / push済み [ ]
+- **commit hash**: `8da63fe`
 - **備考**: design.md 13.4節(機密情報の取り扱い)
 
 ## T1-10: 統合テスト(実YOLOでのE2E)
