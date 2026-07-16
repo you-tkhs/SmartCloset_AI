@@ -393,8 +393,8 @@ chore(backend): プロジェクト雛形を作成
 - **想定される正常結果**: all passed
 - **想定される異常結果**: -
 - **推奨コミットメッセージ**: `feat(pipeline): recover interrupted processing records`
-- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [ ] / push済み [ ]
-- **commit hash**: ______
+- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [x] / push済み [ ]
+- **commit hash**: `48d90dd`
 - **備考**: ポーリングのUIタイムアウトはサーバーstatusを変更しない(design.md 12.5節)
 
 ## T1-9: 画像配信(公開範囲の限定)
