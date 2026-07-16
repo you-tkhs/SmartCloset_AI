@@ -349,8 +349,8 @@ chore(backend): プロジェクト雛形を作成
 - **想定される正常結果**: all passed
 - **想定される異常結果**: -
 - **推奨コミットメッセージ**: `feat(upload): add validated image upload flow` / `fix(storage): clean files after persistence failure`(補償は分けてもよい)
-- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [ ] / push済み [ ]
-- **commit hash**: ______
+- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [x] / push済み [ ]
+- **commit hash**: `76deb28`
 - **備考**: 202を返す条件はdesign.md 6.2節の定義に厳密に従う。既存キー照合(T1-7)はまだ未実装のため、同一キー再送は現時点ではUNIQUE制約違反=database_errorになる(T1-7で解消)
 
 ## T1-7: Idempotency-Key(二重登録防止)
