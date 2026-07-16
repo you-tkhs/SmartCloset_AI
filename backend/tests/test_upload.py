@@ -389,6 +389,37 @@ def test_upload_malformed_idempotency_key_returns_422(client):
     assert response.json()["error_code"] == "validation_error"
 
 
+def test_upload_disguised_jpg_returns_415(client):
+    response = client.post(
+        "/api/upload",
+        files={"file": ("fake.jpg", (FIXTURES_DIR / "fake.jpg").read_bytes(), "image/jpeg")},
+        headers={"Idempotency-Key": str(uuid.uuid4())},
+    )
+
+    assert response.status_code == 415
+    assert response.json()["error_code"] == "unsupported_media_type"
+
+
+def test_upload_oversized_file_returns_413(client, monkeypatch):
+    monkeypatch.setattr(settings, "MAX_UPLOAD_SIZE_MB", 0)
+
+    response = _upload_tops_jpg(client, str(uuid.uuid4()))
+
+    assert response.status_code == 413
+    assert response.json()["error_code"] == "file_too_large"
+
+
+def test_upload_huge_pixels_png_returns_400(client):
+    response = client.post(
+        "/api/upload",
+        files={"file": ("huge_pixels.png", (FIXTURES_DIR / "huge_pixels.png").read_bytes(), "image/png")},
+        headers={"Idempotency-Key": str(uuid.uuid4())},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["error_code"] == "invalid_image"
+
+
 def test_upload_idempotency_key_resend_while_processing_returns_202_without_new_record(client, monkeypatch):
     monkeypatch.setattr(upload_module, "run_pipeline_for_item", lambda item_id: None)
     key = str(uuid.uuid4())
