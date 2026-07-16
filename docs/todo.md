@@ -311,20 +311,20 @@ chore(backend): プロジェクト雛形を作成
   - finally: 一時コピー削除→Session close→ロック解放
   - 各段階の所要時間をINFOログ
 - **サブタスク(異常系)**:
-  - [ ] no_mask画像 → failed / failure_reason=no_mask、**自動リトライされない**(YOLOが1回しか呼ばれない)
-  - [ ] LLM失敗 → failed / llm_error、透過・マスク・annotatedが削除され原画像が残る
-  - [ ] 予期しない例外(モックで注入)→ failed / internal_error
-  - [ ] 排他制御: 2タスク同時起動で実行が直列化される(実行順ログまたはロック取得時刻で検証)
-  - [ ] Sessionがタスクごとに生成・closeされる(モック/spyで検証)
+  - [x] no_mask画像 → failed / failure_reason=no_mask、**自動リトライされない**(YOLOが1回しか呼ばれない)
+  - [x] LLM失敗 → failed / llm_error、透過・マスク・annotatedが削除され原画像が残る
+  - [x] 予期しない例外(モックで注入)→ failed / internal_error
+  - [x] 排他制御: 2タスク同時起動で実行が直列化される(実行順ログまたはロック取得時刻で検証)
+  - [x] Sessionがタスクごとに生成・closeされる(モック/spyで検証)
 - **影響範囲**: uploadルーター、stale復旧
 - **完了条件**: サブタスク含むテストgreen(YOLOはモック、実推論はT1-10で確認)
 - **検証コマンド**: `cd backend && python -m pytest tests/test_services.py -q -k pipeline`
 - **想定される正常結果**: all passed
 - **想定される異常結果**: -
 - **推奨コミットメッセージ**: `feat(pipeline): add pipeline orchestration with concurrency lock`
-- **チェック**: 実装済み [ ] / テスト済み [ ] / commit済み [ ] / push済み [ ]
+- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [ ] / push済み [ ]
 - **commit hash**: ______
-- **備考**: 引数はitem_idのみ。Session/UploadFile/モデルオブジェクトを渡さない(design.md 2.4節)
+- **備考**: 引数はitem_idのみ。Session/UploadFile/モデルオブジェクトを渡さない(design.md 2.4節)。YOLO/OpenAIクライアントはapp.main.appのstateから遅延importで取得し、main.pyとの循環importを回避
 
 ## T1-6: upload ルーター(17段階+補償処理)
 

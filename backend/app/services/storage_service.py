@@ -5,8 +5,12 @@ import shutil
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
+import cv2
+import numpy as np
 from fastapi import UploadFile
+from PIL import Image
 
 from app.config import settings
 
@@ -137,6 +141,16 @@ async def save_upload_to_tmp(file: UploadFile) -> TmpUploadResult:
         raise StorageError("failed to write upload to tmp storage") from e
 
     return TmpUploadResult(tmp_path=tmp_path, size=total_size, sha256=sha256)
+
+
+def save_pipeline_outputs(item_id: str, rgba: np.ndarray, mask: np.ndarray, yolo_result: Any) -> None:
+    """design.md 8.4節手順6: mask/transparent/annotatedを保存する(ノートブックのsave_yolo_outputs()と同一ロジック)。"""
+    Image.fromarray(mask).save(mask_path(item_id))
+    Image.fromarray(rgba).save(transparent_path(item_id))
+
+    annotated_bgr = yolo_result.plot()
+    annotated_rgb = cv2.cvtColor(annotated_bgr, cv2.COLOR_BGR2RGB)
+    Image.fromarray(annotated_rgb).save(annotated_path(item_id))
 
 
 def to_public_url(path: str) -> str | None:
