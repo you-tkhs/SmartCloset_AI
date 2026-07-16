@@ -28,12 +28,6 @@ async def lifespan(app: FastAPI):
     storage_service.init_storage()
     init_db()
 
-    db = create_session()
-    try:
-        recover_stale_processing(db)
-    finally:
-        db.close()
-
     model_path = Path(settings.MODEL_PATH)
     if not model_path.exists():
         raise RuntimeError("YOLO model weights not found at MODEL_PATH")
@@ -45,6 +39,12 @@ async def lifespan(app: FastAPI):
     else:
         app.state.openai_client = None
         logger.warning("OPENAI_API_KEY is not set; OpenAI client disabled")
+
+    db = create_session()
+    try:
+        recover_stale_processing(db)
+    finally:
+        db.close()
 
     tmp_dir = Path(settings.STORAGE_DIR) / "tmp"
     for path in tmp_dir.glob("*"):

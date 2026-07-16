@@ -162,6 +162,7 @@ def _run_pipeline_locked(item_id: str) -> None:
         logger.info("item %s: db update step took %.3fs", item_id, time.monotonic() - step_start)
     except Exception:
         logger.exception("item %s: unexpected error in pipeline", item_id)
+        db.rollback()
         if item is not None:
             mark_item_failed(db, item, "internal_error")
     finally:
