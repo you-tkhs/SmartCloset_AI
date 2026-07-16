@@ -254,8 +254,8 @@ chore(backend): プロジェクト雛形を作成
 - **想定される正常結果**: all passed
 - **想定される異常結果**: -
 - **推奨コミットメッセージ**: `feat(upload): add chunked upload with size and storage guards`
-- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [ ] / push済み [ ]
-- **commit hash**: ______
+- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [x] / push済み [ ]
+- **commit hash**: `7a77a19`
 - **備考**: MVPでは507は使わず503に統一(design.md 7.8節)
 
 ## T1-3: yolo_service 移植
