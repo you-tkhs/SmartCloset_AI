@@ -229,8 +229,8 @@ chore(backend): プロジェクト雛形を作成
   - [x] **改善**: `InvalidImageError` のメッセージから `{e}` を除去し固定メッセージにした(原因は `from e` 連鎖で保持)。テスト追加: `test_validation_unidentifiable_image_error_excludes_absolute_path`
   - [x] **環境整備**: ルート `.gitignore` に `__pycache__/` と `*.pyc` を追加
   - [x] 修正後に `pytest -m "not yolo" -q` を再実行してgreenを確認(23 passed)
-- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [ ] / push済み [ ]
-- **commit hash**: ______
+- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [x] / push済み [ ]
+- **commit hash**: `6e9829b`
 - **備考**: 検証順序は design.md 7.3節の手順5〜10と一致させる。no_clothing.jpgは実写真の代わりにPIL生成の風景風合成画像を使用(ユーザー承認済み、T1-3で使用予定)。EXIF Orientation・CMYKテストはtmp_path上でPillow生成した個別fixtureで検証(fixtures/配下には追加していない)。レビュー指摘はFable 5によるコードレビュー(2026-07-16)由来
 
 ## T1-2: チャンク受信とtmp保存
