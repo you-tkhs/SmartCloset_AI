@@ -440,9 +440,9 @@ chore(backend): プロジェクト雛形を作成
 - **完了条件**: チェックリスト全項目済み
 - **検証コマンド**: `cd backend && python -m pytest -m "not yolo" -q && python -m pytest -q -m yolo`
 - **推奨コミットメッセージ**: `chore(backend): complete phase 1 upload pipeline`
-- **チェック**: 実装済み [ ] / テスト済み [ ] / commit済み [ ] / push済み [ ]
+- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [ ] / push済み [ ]
 - **push済みcommit hash**: ______
-- **備考**: ______
+- **備考**: セルフレビューで発見した差分2点を修正: (1) main.pyのlifespan順序をdesign.md 5.3節どおりに補正(`47c4826`)、(2) pipeline_serviceの想定外例外ハンドラにdesign.md 9.5節「例外時はrollback」を追加(`47c4826`)。あわせて14.1節のテスト観点表との差分確認で/api/upload経由の415・413・400ルーターレベルテストを追加(`b2044b2`)。他の確認項目(todo.mdのチェック・hash記入漏れ、API仕様、DBモデル/DDL、環境変数一覧、.gitignore、機密情報混入)は差分なし。全テスト実行(yolo込み)68 passed
 
 # Phase 2: items CRUD(ブランチ: `phase/2-items-crud`)
 
