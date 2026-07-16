@@ -295,9 +295,9 @@ chore(backend): プロジェクト雛形を作成
 - **想定される正常結果**: all passed
 - **想定される異常結果**: -
 - **推奨コミットメッセージ**: `feat(pipeline): port metadata extraction with strict json schema and retry`
-- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [ ] / push済み [ ]
-- **commit hash**: ______
-- **備考**: プロンプト文言は付録B.1と一字一句一致させる(正本: `docs/prompt_design.md`)
+- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [x] / push済み [ ]
+- **commit hash**: `8844604`
+- **備考**: プロンプト文言は付録B.1と一字一句一致させる(正本: `docs/prompt_design.md`)。ノートブックのbuild_metadata_prompt()と文字列比較して完全一致を確認済み
 
 ## T1-5: pipeline_service(排他制御・Session管理・失敗処理)
 
