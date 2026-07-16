@@ -244,17 +244,17 @@ chore(backend): プロジェクト雛形を作成
   - `check_free_space()` をアップロード前に呼ぶ(`MIN_FREE_STORAGE_MB` 未満→InsufficientStorageError)
   - `ENOSPC` を個別捕捉(InsufficientStorageError)。その他のOSError(権限等)はStorageError。種別ごとにログ
 - **サブタスク(異常系)**:
-  - [ ] 10MB超過(実受信)→ 413 file_too_large、tmpが残らない
-  - [ ] Content-Length偽装(小さく申告して大きく送る)→ 実受信サイズで413
-  - [ ] 空き容量不足(check_free_spaceをモック)→ 503 insufficient_storage
-  - [ ] tmp書き込み失敗(書き込み関数をモックで例外化)→ 500 storage_error、tmpが残らない
+  - [x] 10MB超過(実受信)→ 413 file_too_large、tmpが残らない
+  - [x] Content-Length偽装(小さく申告して大きく送る)→ 実受信サイズで413
+  - [x] 空き容量不足(check_free_spaceをモック)→ 503 insufficient_storage
+  - [x] tmp書き込み失敗(書き込み関数をモックで例外化)→ 500 storage_error、tmpが残らない
 - **影響範囲**: uploadルーター
 - **完了条件**: サブタスク含むテストgreen。`await file.read()` の一括読み込みがコード中に存在しない
 - **検証コマンド**: `cd backend && python -m pytest tests/test_upload.py -q -k "chunk or too_large or storage"` / `grep -rn "file.read()" app/ | grep -v read(` の結果が空
 - **想定される正常結果**: all passed
 - **想定される異常結果**: -
 - **推奨コミットメッセージ**: `feat(upload): add chunked upload with size and storage guards`
-- **チェック**: 実装済み [ ] / テスト済み [ ] / commit済み [ ] / push済み [ ]
+- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [ ] / push済み [ ]
 - **commit hash**: ______
 - **備考**: MVPでは507は使わず503に統一(design.md 7.8節)
 

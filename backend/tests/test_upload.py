@@ -1,8 +1,13 @@
+import asyncio
+import errno
+import io
 from pathlib import Path
 
 import pytest
 from PIL import Image
 
+from app.config import settings
+from app.services import storage_service
 from app.services.image_validation_service import (
     InvalidImageError,
     UnsupportedMediaTypeError,
@@ -10,6 +15,17 @@ from app.services.image_validation_service import (
 )
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
+
+
+class _FakeUploadFile:
+    """テスト用の疑似UploadFile。実受信バイト数のみを基準に読み込む。"""
+
+    def __init__(self, data: bytes, declared_size: int | None = None):
+        self._buf = io.BytesIO(data)
+        self.size = declared_size
+
+    async def read(self, n: int) -> bytes:
+        return self._buf.read(n)
 
 
 def test_validation_accepts_tops_jpg():
@@ -106,3 +122,91 @@ def test_validation_converts_cmyk_jpeg_to_rgb(tmp_path):
 
     assert result.format == "jpeg"
     assert result.image.mode == "RGB"
+
+
+@pytest.fixture
+def storage_env(tmp_path, monkeypatch):
+    monkeypatch.setattr(settings, "STORAGE_DIR", str(tmp_path / "storage"))
+    monkeypatch.setattr(settings, "MAX_UPLOAD_SIZE_MB", 1)
+    monkeypatch.setattr(settings, "MIN_FREE_STORAGE_MB", 1)
+    storage_service.init_storage()
+    return tmp_path / "storage" / "tmp"
+
+
+def _tmp_files(tmp_dir: Path) -> list[Path]:
+    return list(tmp_dir.glob("*.upload"))
+
+
+def test_chunk_upload_rejects_oversized_file_and_leaves_no_tmp(storage_env):
+    data = b"x" * (2 * 1024 * 1024)  # MAX_UPLOAD_SIZE_MB=1MBを超過
+    file = _FakeUploadFile(data)
+
+    with pytest.raises(storage_service.FileTooLargeError):
+        asyncio.run(storage_service.save_upload_to_tmp(file))
+
+    assert _tmp_files(storage_env) == []
+
+
+def test_chunk_upload_uses_actual_received_size_over_declared_size(storage_env):
+    # Content-Length偽装を模した状況: 申告サイズ(declared_size)は小さいが、
+    # 実際に読み込まれるバイト数は上限を超える。実受信サイズを最終基準とする。
+    data = b"x" * (2 * 1024 * 1024)
+    file = _FakeUploadFile(data, declared_size=100)
+
+    with pytest.raises(storage_service.FileTooLargeError):
+        asyncio.run(storage_service.save_upload_to_tmp(file))
+
+    assert _tmp_files(storage_env) == []
+
+
+def test_chunk_upload_rejects_when_free_space_insufficient(storage_env, monkeypatch):
+    monkeypatch.setattr(storage_service, "check_free_space", lambda: 0.1)
+    file = _FakeUploadFile(b"small file content")
+
+    with pytest.raises(storage_service.InsufficientStorageError):
+        asyncio.run(storage_service.save_upload_to_tmp(file))
+
+    assert _tmp_files(storage_env) == []
+
+
+def test_chunk_upload_storage_error_on_write_failure_leaves_no_tmp(storage_env, monkeypatch):
+    def _raise_write_error(f, chunk: bytes) -> None:
+        raise OSError(errno.EACCES, "Permission denied")
+
+    monkeypatch.setattr(storage_service, "_write_chunk", _raise_write_error)
+    file = _FakeUploadFile(b"small file content")
+
+    with pytest.raises(storage_service.StorageError):
+        asyncio.run(storage_service.save_upload_to_tmp(file))
+
+    assert _tmp_files(storage_env) == []
+
+
+def test_chunk_upload_insufficient_storage_on_enospc_write_failure(storage_env, monkeypatch):
+    def _raise_enospc(f, chunk: bytes) -> None:
+        raise OSError(errno.ENOSPC, "No space left on device")
+
+    monkeypatch.setattr(storage_service, "_write_chunk", _raise_enospc)
+    file = _FakeUploadFile(b"small file content")
+
+    with pytest.raises(storage_service.InsufficientStorageError):
+        asyncio.run(storage_service.save_upload_to_tmp(file))
+
+    assert _tmp_files(storage_env) == []
+
+
+def test_chunk_upload_succeeds_and_computes_sha256(storage_env):
+    data = b"hello smartcloset"
+    file = _FakeUploadFile(data)
+
+    result = asyncio.run(storage_service.save_upload_to_tmp(file))
+
+    assert result.size == len(data)
+    assert len(result.sha256) == 64
+    assert result.tmp_path.read_bytes() == data
+    assert _tmp_files(storage_env) == [result.tmp_path]
+
+
+def test_no_bulk_file_read_in_storage_service():
+    source = Path(storage_service.__file__).read_text()
+    assert ".read()" not in source
