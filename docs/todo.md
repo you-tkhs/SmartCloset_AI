@@ -322,8 +322,8 @@ chore(backend): プロジェクト雛形を作成
 - **想定される正常結果**: all passed
 - **想定される異常結果**: -
 - **推奨コミットメッセージ**: `feat(pipeline): add pipeline orchestration with concurrency lock`
-- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [ ] / push済み [ ]
-- **commit hash**: ______
+- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [x] / push済み [ ]
+- **commit hash**: `6cc01a5`
 - **備考**: 引数はitem_idのみ。Session/UploadFile/モデルオブジェクトを渡さない(design.md 2.4節)。YOLO/OpenAIクライアントはapp.main.appのstateから遅延importで取得し、main.pyとの循環importを回避
 
 ## T1-6: upload ルーター(17段階+補償処理)
