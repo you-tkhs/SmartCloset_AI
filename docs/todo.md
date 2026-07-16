@@ -404,16 +404,16 @@ chore(backend): プロジェクト雛形を作成
 - **変更対象ファイル**: `backend/tests/test_upload.py`(または `test_security.py` 新設)
 - **実装内容**: マウントが originals/transparent の2つのみであることの確認テスト。ItemResponseの `*_image_url` が `/images/...` 形式で返ること(`to_public_url` 経由)
 - **サブタスク(機密非漏洩)**:
-  - [ ] `/images/tmp/...` `/images/masks/...` `/images/annotated/...` が404
-  - [ ] `/images/../data/smartcloset.db` 等のトラバーサルが404
-  - [ ] エラーレスポンスに絶対パス・スタックトレースが含まれない(アップロード異常系の応答本文を検査)
+  - [x] `/images/tmp/...` `/images/masks/...` `/images/annotated/...` が404
+  - [x] `/images/../data/smartcloset.db` 等のトラバーサルが404
+  - [x] エラーレスポンスに絶対パス・スタックトレースが含まれない(アップロード異常系の応答本文を検査)
 - **影響範囲**: セキュリティ
 - **完了条件**: サブタスクgreen
 - **検証コマンド**: `cd backend && python -m pytest tests/ -q -k "public or security"`
 - **想定される正常結果**: all passed
 - **想定される異常結果**: -
 - **推奨コミットメッセージ**: `test(security): verify static file exposure is limited`
-- **チェック**: 実装済み [ ] / テスト済み [ ] / commit済み [ ] / push済み [ ]
+- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [ ] / push済み [ ]
 - **commit hash**: ______
 - **備考**: design.md 13.4節(機密情報の取り扱い)
 
