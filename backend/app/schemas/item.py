@@ -1,6 +1,7 @@
 from datetime import datetime
+from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class UploadAcceptedResponse(BaseModel):
@@ -43,3 +44,21 @@ class ItemListResponse(BaseModel):
     total: int
     page: int
     page_size: int
+
+
+class ItemUpdateRequest(BaseModel):
+    """design.md 6.6節: 全フィールド任意、指定されたものだけ更新する(exclude_unsetで判定)。
+
+    color_secondary以外は付録どおり非nullable(design.md 6.6節の型は`string`)であり、
+    明示的に`null`を送ると422になる。デフォルトのNoneは「未指定」を表す内部値であり、
+    exclude_unset=Trueで拾われるフィールドにのみ現れるため実際にDBへ書き込まれることはない。
+    """
+
+    category: Literal["outer", "tops", "bottoms", "dress", "shoes", "bag", "hat", "watch", "glasses"] = None  # type: ignore[assignment]
+    color_primary: str = Field(default=None, min_length=1, max_length=30)  # type: ignore[assignment]
+    color_secondary: str | None = Field(default=None, min_length=1, max_length=30)
+    pattern: Literal["無地", "ストライプ", "ボーダー", "チェック", "ドット", "花柄", "ロゴ", "プリント", "カモフラ", "その他"] = None  # type: ignore[assignment]
+    material: Literal[
+        "コットン", "デニム", "ニット", "レザー", "ナイロン", "フリース", "ウール", "スウェット", "ファー", "ボア", "金属", "樹脂", "その他"
+    ] = None  # type: ignore[assignment]
+    silhouette: str = Field(default=None, min_length=1, max_length=50)  # type: ignore[assignment]

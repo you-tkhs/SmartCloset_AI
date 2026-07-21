@@ -505,17 +505,17 @@ chore(backend): プロジェクト雛形を作成
 - **変更対象ファイル**: `backend/app/routers/items.py`、`backend/app/schemas/item.py`(ItemUpdateRequest)、`backend/tests/test_items.py`
 - **実装内容**: 部分更新(指定フィールドのみ)。category/pattern/materialは付録A enumで検証。更新時 `is_user_corrected=true`・`updated_at` 更新。completed以外は409(processing→item_is_processing / failed→item_not_editable)
 - **サブタスク(異常系)**:
-  - [ ] enum違反(category="コート"等)→ 422 validation_error
-  - [ ] processing中のPATCH → 409 item_is_processing
-  - [ ] failedのPATCH → 409 item_not_editable
-  - [ ] color_secondary=null で副色が消せる
+  - [x] enum違反(category="コート"等)→ 422 validation_error
+  - [x] processing中のPATCH → 409 item_is_processing
+  - [x] failedのPATCH → 409 item_not_editable
+  - [x] color_secondary=null で副色が消せる
 - **完了条件**: サブタスク含むテストgreen
 - **検証コマンド**: `cd backend && python -m pytest tests/test_items.py -q -k patch`
 - **想定される正常結果**: all passed
 - **推奨コミットメッセージ**: `feat(items): add metadata correction endpoint`
-- **チェック**: 実装済み [ ] / テスト済み [ ] / commit済み [ ] / push済み [ ]
+- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [x] / push済み [ ]
 - **commit hash**: ______
-- **備考**: enumはdesign.md付録Aが正本
+- **備考**: enumはdesign.md付録Aが正本。category/pattern/material/color_primary/silhouetteはcolor_secondaryと異なり非nullable(明示nullは422)
 
 ## T2-4: DELETE /api/items/{id}(物理削除)
 

@@ -1,4 +1,4 @@
-"""design.md 6.3節・6.4節・6.5節・8.6節(b): GET /api/items/{item_id}/status, GET /api/items, GET /api/items/{item_id}。lazy stale検出を行う。"""
+"""design.md 6.3〜6.6節・8.6節(b): items系エンドポイント。lazy stale検出は/statusでのみ行う。"""
 
 from typing import Literal
 
@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.clothing_item import ClothingItem
-from app.schemas.item import ItemListResponse, ItemResponse, ItemStatusResponse
+from app.schemas.item import ItemListResponse, ItemResponse, ItemStatusResponse, ItemUpdateRequest
 from app.services.pipeline_service import recover_item_if_stale
 from app.services.storage_service import to_public_url
 
@@ -101,5 +101,31 @@ def get_item_detail(item_id: str, db: Session = Depends(get_db)):
     item = db.get(ClothingItem, item_id)
     if item is None:
         raise _error(404, "item_not_found", "指定されたアイテムが見つかりません。", False)
+
+    return _to_item_response(item)
+
+
+@router.patch("/api/items/{item_id}", response_model=ItemResponse)
+def update_item(item_id: str, payload: ItemUpdateRequest, db: Session = Depends(get_db)):
+    item = db.get(ClothingItem, item_id)
+    if item is None:
+        raise _error(404, "item_not_found", "指定されたアイテムが見つかりません。", False)
+
+    if item.status == "processing":
+        raise _error(
+            409, "item_is_processing", "AI処理中のため操作できません。処理完了後にお試しください。", True
+        )
+    if item.status == "failed":
+        raise _error(
+            409, "item_not_editable", "処理に失敗したアイテムは編集できません。削除して再登録してください。", False
+        )
+
+    update_data = payload.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(item, field, value)
+    item.is_user_corrected = True
+
+    db.commit()
+    db.refresh(item)
 
     return _to_item_response(item)

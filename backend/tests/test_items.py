@@ -1,4 +1,4 @@
-"""design.md 6.4節・6.5節: GET /api/items(一覧・フィルタ・ページング)。"""
+"""design.md 6.4〜6.6節: GET /api/items(一覧・フィルタ・ページング)、GET /api/items/{id}、PATCH /api/items/{id}。"""
 
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -253,3 +253,70 @@ def test_detail_does_not_trigger_stale_recovery(client):
 
     assert resp.status_code == 200
     assert resp.json()["status"] == "processing"
+
+
+def test_patch_updates_specified_fields_and_marks_user_corrected(client):
+    item_id = _create_item(category="tops", color_primary="白", is_user_corrected=False)
+
+    resp = client.patch(f"/api/items/{item_id}", json={"category": "outer", "silhouette": "オーバーサイズ"})
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["category"] == "outer"
+    assert body["silhouette"] == "オーバーサイズ"
+    assert body["color_primary"] == "白"
+    assert body["is_user_corrected"] is True
+
+
+def test_patch_color_secondary_null_clears_secondary_color(client):
+    item_id = _create_item(color_primary="黒", color_secondary="白")
+
+    resp = client.patch(f"/api/items/{item_id}", json={"color_secondary": None})
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["color_secondary"] is None
+    assert body["color_primary"] == "黒"
+
+
+def test_patch_returns_404_for_missing_item(client):
+    resp = client.patch(f"/api/items/{uuid.uuid4()}", json={"category": "tops"})
+
+    assert resp.status_code == 404
+    assert resp.json()["error_code"] == "item_not_found"
+
+
+def test_patch_enum_violation_is_422(client):
+    item_id = _create_item()
+
+    resp = client.patch(f"/api/items/{item_id}", json={"category": "コート"})
+
+    assert resp.status_code == 422
+    assert resp.json()["error_code"] == "validation_error"
+
+
+def test_patch_category_explicit_null_is_422(client):
+    """categoryはcolor_secondaryと違い非nullable(design.md 6.6節)。"""
+    item_id = _create_item()
+
+    resp = client.patch(f"/api/items/{item_id}", json={"category": None})
+
+    assert resp.status_code == 422
+
+
+def test_patch_processing_item_is_409(client):
+    item_id = _create_item(status="processing", original_image_path=None, transparent_image_path=None)
+
+    resp = client.patch(f"/api/items/{item_id}", json={"category": "tops"})
+
+    assert resp.status_code == 409
+    assert resp.json()["error_code"] == "item_is_processing"
+
+
+def test_patch_failed_item_is_409(client):
+    item_id = _create_item(status="failed", failure_reason="no_mask", original_image_path=None, transparent_image_path=None)
+
+    resp = client.patch(f"/api/items/{item_id}", json={"category": "tops"})
+
+    assert resp.status_code == 409
+    assert resp.json()["error_code"] == "item_not_editable"
