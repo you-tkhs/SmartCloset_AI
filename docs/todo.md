@@ -720,9 +720,9 @@ chore(backend): プロジェクト雛形を作成
 - **実装内容**: 0.5節の共通チェックリスト全消化(フロントは `npx tsc --noEmit` / `npm run build` を全テストに追加)→ ブラウザで登録→閲覧→編集→提案のE2E → ユーザー承認のもとpush・mainへmerge
 - **検証コマンド**: `cd backend && python -m pytest -m "not yolo" -q` / `cd frontend && npm run build`
 - **推奨コミットメッセージ**: `chore(frontend): complete phase 4 frontend`
-- **チェック**: 実装済み [ ] / テスト済み [ ] / commit済み [ ] / push済み [ ]
+- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [ ] / push済み [ ]
 - **push済みcommit hash**: ______
-- **備考**: ______
+- **備考**: 0.5節チェックリスト全項目確認済み(design.md/todo.md差分なし、backend/DBモデル・環境変数の変更なし、.gitignore・機密情報混入なし)。backend: pytest -m "not yolo" で117 passed。frontend: tsc --noEmit・npm run build通過。design.md 14.3節の手動E2Eチェックリスト項目1〜7を全て確認(項目7はDB操作でstale processingを再現しbackendのlazy stale検出とフロントエンドのprocessing_interrupted表示・localStorage解除を確認)。項目8(本番URL・スマホ)はPhase 5・6で実施
 
 ---
 
