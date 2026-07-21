@@ -668,19 +668,19 @@ chore(backend): プロジェクト雛形を作成
   - failure_reason別メッセージ(12.6節の表のとおり)
   - completed時: 抽出結果プレビュー+「クローゼットを見る」「続けて登録」
 - **サブタスク(異常系・手動確認込み)**:
-  - [ ] 二重送信防止: 送信ボタン連打で1リクエストのみ
-  - [ ] 通信切断(202前): DevToolsオフライン化→再試行→同一キーで再送され二重登録されない
-  - [ ] 通信切断(202後): 202直後にリロード→ポーリングが再開される
-  - [ ] polling timeout: backendのパイプラインを一時的に遅延(またはPROCESSING_STALE_MINUTES内のprocessing放置)→60秒でタイムアウトUI
-  - [ ] failed(no_mask): 衣服なし画像で「衣服を検出できませんでした」+新規アップロード導線(同一画像の自動再送をしない)
+  - [x] 二重送信防止: 送信ボタン連打で1リクエストのみ
+  - [x] 通信切断(202前): DevToolsオフライン化→再試行→同一キーで再送され二重登録されない
+  - [x] 通信切断(202後): 202直後にリロード→ポーリングが再開される
+  - [x] polling timeout: backendのパイプラインを一時的に遅延(またはPROCESSING_STALE_MINUTES内のprocessing放置)→60秒でタイムアウトUI
+  - [x] failed(no_mask): 衣服なし画像で「衣服を検出できませんでした」+新規アップロード導線(同一画像の自動再送をしない)
 - **完了条件**: 正常系+サブタスクの手動確認。tsc通過
 - **検証コマンド**: `cd frontend && npx tsc --noEmit` + ブラウザ手動確認
 - **想定される正常結果**: 登録完了までUIがブロックせず遷移する
 - **想定される異常結果**: -
 - **推奨コミットメッセージ**: `feat(frontend): add upload flow with state machine and idempotent retry`
-- **チェック**: 実装済み [ ] / テスト済み [ ] / commit済み [ ] / push済み [ ]
+- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [ ] / push済み [ ]
 - **commit hash**: ______
-- **備考**: 状態名はdesign.md 12.3節と一致させる(コード上の定数名も同一)
+- **備考**: 状態名はdesign.md 12.3節と一致させる(コード上の定数名も同一)。Playwrightで実backend+実LLMを使い正常系(tops.jpg)・no_mask失敗・クライアント検証エラー・202前後の通信切断・二重送信防止・polling timeout(モックで30回ポーリング後に遷移)を確認。テスト後に作成したDB/storageのデータはDELETE APIで削除済み
 
 ## T4-4: アイテム詳細・編集画面(/items/[id])
 
