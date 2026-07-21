@@ -559,16 +559,16 @@ chore(backend): プロジェクト雛形を作成
 - **変更対象ファイル**: `backend/app/services/weather_service.py`、`backend/app/routers/weather.py`、`backend/app/schemas/weather.py`、`backend/tests/test_suggest.py`
 - **実装内容**: `get_current_weather(city) -> WeatherInfo | None`(httpx、timeout 5秒、リトライなし、失敗はWARNINGログ+None)。`GET /api/weather`はNone時503 service_unavailable
 - **サブタスク(異常系。httpxをモック)**:
-  - [ ] タイムアウト → None
-  - [ ] 非200応答 → None
-  - [ ] APIキー未設定 → None(例外を出さない)
+  - [x] タイムアウト → None
+  - [x] 非200応答 → None
+  - [x] APIキー未設定 → None(例外を出さない)
 - **完了条件**: モックテストgreen
 - **検証コマンド**: `cd backend && python -m pytest tests/test_suggest.py -q -k weather`
 - **想定される正常結果**: all passed
 - **推奨コミットメッセージ**: `feat(weather): add openweathermap client with fallback`
-- **チェック**: 実装済み [ ] / テスト済み [ ] / commit済み [ ] / push済み [ ]
+- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [x] / push済み [ ]
 - **commit hash**: ______
-- **備考**: 実APIでの動作確認は手動で1回行う(`curl "localhost:8000/api/weather"`)
+- **備考**: 実APIでの動作確認は手動で1回行う(`curl "localhost:8000/api/weather"`)。未実施(OPENWEATHER_API_KEY未設定・手動確認は後続タスクでまとめて実施予定)
 
 ## T3-2: suggest_prompt と suggest_service
 
