@@ -568,7 +568,7 @@ chore(backend): プロジェクト雛形を作成
 - **推奨コミットメッセージ**: `feat(weather): add openweathermap client with fallback`
 - **チェック**: 実装済み [x] / テスト済み [x] / commit済み [x] / push済み [ ]
 - **commit hash**: `d31ba0e`
-- **備考**: 実APIでの動作確認は手動で1回行う(`curl "localhost:8000/api/weather"`)。未実施(backend/.envにOPENWEATHER_API_KEY未設定・手動確認は後続タスクでまとめて実施予定)
+- **備考**: 実APIでの動作確認は手動で1回行う(`curl "localhost:8000/api/weather"`)。backend/.envにOPENWEATHER_API_KEY・DATABASE_URL・DEFAULT_CITYを設定して実施したが、発行直後のAPIキーがOpenWeatherMap側で未有効化のため401(→実装どおり503にフォールバック。実装・フォールバック動作自体は正しいことを確認済み)。**T3-3(実LLM確認)のタイミングでキー有効化後の再確認を行う**
 
 ## T3-2: suggest_prompt と suggest_service
 
