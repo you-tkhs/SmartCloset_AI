@@ -615,9 +615,9 @@ chore(backend): プロジェクト雛形を作成
 - **実装内容**: 0.5節の共通チェックリスト全消化 → ユーザー承認のもとpush・mainへmerge
 - **検証コマンド**: `cd backend && python -m pytest -m "not yolo" -q`
 - **推奨コミットメッセージ**: `chore(backend): complete phase 3 suggestion`
-- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [x] / push済み [ ]
-- **push済みcommit hash**: ______
-- **備考**: 0.5節チェックリスト全項目確認済み(design.md/todo.md差分なし、DBモデル・環境変数の変更なし、.gitignore・機密情報混入なし)。全テスト: not yoloで117 passed、yolo込みで122 passed。実API動作確認(天気・実LLM)も実施済み
+- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [x] / push済み [x]
+- **push済みcommit hash**: `68621d2`
+- **備考**: 0.5節チェックリスト全項目確認済み(design.md/todo.md差分なし、DBモデル・環境変数の変更なし、.gitignore・機密情報混入なし)。全テスト: not yoloで117 passed、yolo込みで122 passed。実API動作確認(天気・実LLM)も実施済み。phase/3-suggestをmainへfast-forward mergeしpush済み(`68621d2`)
 - **備考**: ______
 
 # Phase 4: フロントエンド(ブランチ: `phase/4-frontend`)
