@@ -634,8 +634,8 @@ chore(backend): プロジェクト雛形を作成
 - **検証コマンド**: `cd frontend && npm run build && npx tsc --noEmit`
 - **想定される正常結果**: ビルド成功・型エラーなし
 - **推奨コミットメッセージ**: `chore(frontend): scaffold next.js app with typed api client`
-- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [ ] / push済み [ ]
-- **commit hash**: ______
+- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [x] / push済み [ ]
+- **commit hash**: `6a3f31b`
 - **備考**: 開発時は `NEXT_PUBLIC_API_BASE_URL=http://localhost:8000`(`.env.local`、Git管理外)
 
 ## T4-2: クローゼット一覧画面(/)
