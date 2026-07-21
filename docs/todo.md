@@ -495,7 +495,7 @@ chore(backend): プロジェクト雛形を作成
 - **想定される正常結果**: all passed
 - **推奨コミットメッセージ**: `feat(items): add item detail endpoint`
 - **チェック**: 実装済み [x] / テスト済み [x] / commit済み [x] / push済み [ ]
-- **commit hash**: ______
+- **commit hash**: `eb958c5`
 - **備考**: stale復旧は/statusエンドポイント専用(8.6節(b))のため詳細取得では実行しない
 
 ## T2-3: PATCH /api/items/{id}(手動補正)
