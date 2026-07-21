@@ -494,9 +494,9 @@ chore(backend): プロジェクト雛形を作成
 - **検証コマンド**: `cd backend && python -m pytest tests/test_items.py -q -k detail`
 - **想定される正常結果**: all passed
 - **推奨コミットメッセージ**: `feat(items): add item detail endpoint`
-- **チェック**: 実装済み [ ] / テスト済み [ ] / commit済み [ ] / push済み [ ]
+- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [x] / push済み [ ]
 - **commit hash**: ______
-- **備考**: ______
+- **備考**: stale復旧は/statusエンドポイント専用(8.6節(b))のため詳細取得では実行しない
 
 ## T2-3: PATCH /api/items/{id}(手動補正)
 

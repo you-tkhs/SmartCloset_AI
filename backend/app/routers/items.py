@@ -1,4 +1,4 @@
-"""design.md 6.3節・6.4節・6.5節・8.6節(b): GET /api/items/{item_id}/status, GET /api/items。lazy stale検出を行う。"""
+"""design.md 6.3節・6.4節・6.5節・8.6節(b): GET /api/items/{item_id}/status, GET /api/items, GET /api/items/{item_id}。lazy stale検出を行う。"""
 
 from typing import Literal
 
@@ -94,3 +94,12 @@ def list_items(
         page=page,
         page_size=page_size,
     )
+
+
+@router.get("/api/items/{item_id}", response_model=ItemResponse)
+def get_item_detail(item_id: str, db: Session = Depends(get_db)):
+    item = db.get(ClothingItem, item_id)
+    if item is None:
+        raise _error(404, "item_not_found", "指定されたアイテムが見つかりません。", False)
+
+    return _to_item_response(item)

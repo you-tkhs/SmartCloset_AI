@@ -201,3 +201,55 @@ def test_list_invalid_sort_is_422(client):
     resp = client.get("/api/items", params={"sort": "invalid_sort"})
 
     assert resp.status_code == 422
+
+
+def test_detail_returns_item_response_fields_with_urls(client):
+    item_id = _create_item(
+        category="tops",
+        color_primary="白",
+        color_secondary="紺",
+        pattern="無地",
+        material="コットン",
+        silhouette="レギュラーフィット",
+        yolo_pred_class="tops",
+        yolo_confidence=0.91,
+        num_instances=1,
+    )
+
+    resp = client.get(f"/api/items/{item_id}")
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["id"] == item_id
+    assert body["status"] == "completed"
+    assert body["category"] == "tops"
+    assert body["color_primary"] == "白"
+    assert body["color_secondary"] == "紺"
+    assert body["original_image_url"] == f"/images/originals/{item_id}_original.jpg"
+    assert body["transparent_image_url"] == f"/images/transparent/{item_id}_transparent.png"
+    assert "original_image_path" not in body
+    assert "transparent_image_path" not in body
+
+
+def test_detail_returns_404_for_missing_item(client):
+    resp = client.get(f"/api/items/{uuid.uuid4()}")
+
+    assert resp.status_code == 404
+    body = resp.json()
+    assert body["error_code"] == "item_not_found"
+
+
+def test_detail_does_not_trigger_stale_recovery(client):
+    """T2-2の対象は6.5節のItemResponse返却のみ。stale復旧は/statusエンドポイント専用(8.6節(b))。"""
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    item_id = _create_item(
+        status="processing",
+        original_image_path=None,
+        transparent_image_path=None,
+        updated_at=now - timedelta(minutes=999),
+    )
+
+    resp = client.get(f"/api/items/{item_id}")
+
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "processing"
