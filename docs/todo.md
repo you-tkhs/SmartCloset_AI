@@ -582,9 +582,9 @@ chore(backend): プロジェクト雛形を作成
 - **検証コマンド**: `cd backend && python -m pytest tests/test_suggest.py -q -k service`
 - **想定される正常結果**: all passed
 - **推奨コミットメッセージ**: `feat(suggest): add coordinate suggestion service with llm`
-- **チェック**: 実装済み [ ] / テスト済み [ ] / commit済み [ ] / push済み [ ]
+- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [x] / push済み [ ]
 - **commit hash**: ______
-- **備考**: ルール(dress排他・同カテゴリ1点)はプロンプトで指示し、コード側では強制しない(LLM出力の検証はID実在のみ)
+- **備考**: ルール(dress排他・同カテゴリ1点)はプロンプトで指示し、コード側では強制しない(LLM出力の検証はID実在のみ)。schemas/suggest.py(SuggestRequest/SuggestResponse)もこのタスクで先行定義(routers/suggest.pyでの結線はT3-3)。create_suggestionはClothingItem(ORM)のリストを返す設計とし、ItemResponseへの変換はT3-3のルーターで行う
 
 ## T3-3: POST /api/suggest(異常系込み)
 
