@@ -606,7 +606,7 @@ chore(backend): プロジェクト雛形を作成
 - **想定される異常結果**: -
 - **推奨コミットメッセージ**: `feat(suggest): add suggestion endpoint with fallbacks`
 - **チェック**: 実装済み [x] / テスト済み [x] / commit済み [x] / push済み [ ]
-- **commit hash**: ______
+- **commit hash**: `c2a127d`
 - **備考**: 実LLMでの動作確認を実施(backend/.envにルートの.envと同じOPENAI_API_KEYをコピーして設定)。tops.jpgをアップロード→completed→`/api/suggest`で天気(盛岡・実データ)を反映した提案・実在item_idのみ・ボトムス不足を文章で補う応答を確認。検証用アイテムは確認後にDELETEで削除済み。ルーター間再利用のためroutes/items.pyの`_to_item_response`を`to_item_response`に公開化した
 
 ## T3-SR: Phase 3 セルフレビューと完了処理
