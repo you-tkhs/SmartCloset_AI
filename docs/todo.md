@@ -480,7 +480,7 @@ chore(backend): プロジェクト雛形を作成
 - **想定される正常結果**: all passed
 - **想定される異常結果**: page_size=101 → 422
 - **推奨コミットメッセージ**: `feat(items): add item list with filters and pagination`
-- **チェック**: 実装済み [ ] / テスト済み [ ] / commit済み [ ] / push済み [ ]
+- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [x] / push済み [ ]
 - **commit hash**: ______
 - **備考**: user_id=1固定(シングルユーザー)
 
