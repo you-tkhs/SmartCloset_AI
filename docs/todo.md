@@ -567,8 +567,8 @@ chore(backend): プロジェクト雛形を作成
 - **想定される正常結果**: all passed
 - **推奨コミットメッセージ**: `feat(weather): add openweathermap client with fallback`
 - **チェック**: 実装済み [x] / テスト済み [x] / commit済み [x] / push済み [ ]
-- **commit hash**: ______
-- **備考**: 実APIでの動作確認は手動で1回行う(`curl "localhost:8000/api/weather"`)。未実施(OPENWEATHER_API_KEY未設定・手動確認は後続タスクでまとめて実施予定)
+- **commit hash**: `d31ba0e`
+- **備考**: 実APIでの動作確認は手動で1回行う(`curl "localhost:8000/api/weather"`)。未実施(backend/.envにOPENWEATHER_API_KEY未設定・手動確認は後続タスクでまとめて実施予定)
 
 ## T3-2: suggest_prompt と suggest_service
 
