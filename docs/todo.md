@@ -568,7 +568,7 @@ chore(backend): プロジェクト雛形を作成
 - **推奨コミットメッセージ**: `feat(weather): add openweathermap client with fallback`
 - **チェック**: 実装済み [x] / テスト済み [x] / commit済み [x] / push済み [ ]
 - **commit hash**: `d31ba0e`
-- **備考**: 実APIでの動作確認は手動で1回行う(`curl "localhost:8000/api/weather"`)。backend/.envにOPENWEATHER_API_KEY・DATABASE_URL・DEFAULT_CITYを設定して実施したが、発行直後のAPIキーがOpenWeatherMap側で未有効化のため401(→実装どおり503にフォールバック。実装・フォールバック動作自体は正しいことを確認済み)。**T3-3(実LLM確認)のタイミングでキー有効化後の再確認を行う**
+- **備考**: 実APIでの動作確認は手動で1回行う(`curl "localhost:8000/api/weather"`)。backend/.envにOPENWEATHER_API_KEY・DATABASE_URL・DEFAULT_CITYを設定して実施。初回はキー未有効化で401(→503フォールバックを確認)、T3-3のタイミングで再確認したところキーが有効化され200(盛岡市の実データ)を確認できた
 
 ## T3-2: suggest_prompt と suggest_service
 
@@ -593,21 +593,21 @@ chore(backend): プロジェクト雛形を作成
 - **変更対象ファイル**: `backend/app/routers/suggest.py`、`backend/tests/test_suggest.py`
 - **実装内容**: SuggestRequest検証(request_text 1〜500文字)→completed 0件なら**LLMを呼ばず**400 no_completed_items→天気(use_weather/city)→create_suggestion→SuggestResponse(items/weather/weather_available/log_id)
 - **サブタスク(異常系)**:
-  - [ ] completed 0件 → 400 no_completed_items、LLMモックが呼ばれていない
-  - [ ] processing/failedのアイテムがクローゼットJSONに含まれない
-  - [ ] 天気失敗 → 200、weather_available=false、weather_json=NULLでログ記録
-  - [ ] LLMが無効item_idを混ぜる → 有効IDのみ返る
-  - [ ] 全item_id無効 → items:[] で suggestion_text が返る(200)
-  - [ ] LLM失敗(リトライ後)→ 503 service_unavailable、coordinate_logsに記録されない
-  - [ ] request_text空白のみ → 422
+  - [x] completed 0件 → 400 no_completed_items、LLMモックが呼ばれていない
+  - [x] processing/failedのアイテムがクローゼットJSONに含まれない
+  - [x] 天気失敗 → 200、weather_available=false、weather_json=NULLでログ記録
+  - [x] LLMが無効item_idを混ぜる → 有効IDのみ返る
+  - [x] 全item_id無効 → items:[] で suggestion_text が返る(200)
+  - [x] LLM失敗(リトライ後)→ 503 service_unavailable、coordinate_logsに記録されない
+  - [x] request_text空白のみ → 422
 - **完了条件**: サブタスク含むテストgreen
 - **検証コマンド**: `cd backend && python -m pytest tests/test_suggest.py -q`
 - **想定される正常結果**: all passed
 - **想定される異常結果**: -
 - **推奨コミットメッセージ**: `feat(suggest): add suggestion endpoint with fallbacks`
-- **チェック**: 実装済み [ ] / テスト済み [ ] / commit済み [ ] / push済み [ ]
+- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [x] / push済み [ ]
 - **commit hash**: ______
-- **備考**: 実LLMでの動作確認を手動で1回行う(衣服を数点登録した状態で `curl -X POST localhost:8000/api/suggest -H 'Content-Type: application/json' -d '{"request_text":"今日は大事な会議。きちんと見せたい"}'`)
+- **備考**: 実LLMでの動作確認を実施(backend/.envにルートの.envと同じOPENAI_API_KEYをコピーして設定)。tops.jpgをアップロード→completed→`/api/suggest`で天気(盛岡・実データ)を反映した提案・実在item_idのみ・ボトムス不足を文章で補う応答を確認。検証用アイテムは確認後にDELETEで削除済み。ルーター間再利用のためroutes/items.pyの`_to_item_response`を`to_item_response`に公開化した
 
 ## T3-SR: Phase 3 セルフレビューと完了処理
 

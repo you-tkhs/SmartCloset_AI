@@ -21,7 +21,7 @@ def _error(status_code: int, error_code: str, detail: str, retryable: bool) -> H
     )
 
 
-def _to_item_response(item: ClothingItem) -> ItemResponse:
+def to_item_response(item: ClothingItem) -> ItemResponse:
     return ItemResponse(
         id=item.id,
         status=item.status,
@@ -89,7 +89,7 @@ def list_items(
     items = query.order_by(order_column).offset((page - 1) * page_size).limit(page_size).all()
 
     return ItemListResponse(
-        items=[_to_item_response(item) for item in items],
+        items=[to_item_response(item) for item in items],
         total=total,
         page=page,
         page_size=page_size,
@@ -102,7 +102,7 @@ def get_item_detail(item_id: str, db: Session = Depends(get_db)):
     if item is None:
         raise _error(404, "item_not_found", "指定されたアイテムが見つかりません。", False)
 
-    return _to_item_response(item)
+    return to_item_response(item)
 
 
 @router.patch("/api/items/{item_id}", response_model=ItemResponse)
@@ -128,7 +128,7 @@ def update_item(item_id: str, payload: ItemUpdateRequest, db: Session = Depends(
     db.commit()
     db.refresh(item)
 
-    return _to_item_response(item)
+    return to_item_response(item)
 
 
 @router.delete("/api/items/{item_id}", status_code=204)

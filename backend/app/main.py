@@ -12,7 +12,7 @@ from ultralytics import YOLO
 
 from app.config import settings
 from app.database import create_session, init_db
-from app.routers import health, items, upload, weather
+from app.routers import health, items, suggest, upload, weather
 from app.services import storage_service
 from app.services.pipeline_service import recover_stale_processing
 
@@ -109,3 +109,4 @@ app.include_router(health.router)
 app.include_router(upload.router)
 app.include_router(items.router)
 app.include_router(weather.router)
+app.include_router(suggest.router)

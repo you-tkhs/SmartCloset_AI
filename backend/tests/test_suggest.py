@@ -254,3 +254,140 @@ def test_suggest_request_accepts_valid_text():
     req = SuggestRequest(request_text="今日は会議です")
     assert req.use_weather is True
     assert req.city is None
+
+
+def test_suggest_endpoint_returns_400_when_no_completed_items(client, monkeypatch):
+    fake_client = MagicMock()
+    monkeypatch.setattr(main_module.app.state, "openai_client", fake_client, raising=False)
+
+    resp = client.post("/api/suggest", json={"request_text": "今日のコーデ"})
+
+    assert resp.status_code == 400
+    assert resp.json()["error_code"] == "no_completed_items"
+    assert fake_client.chat.completions.create.call_count == 0
+
+
+def test_suggest_endpoint_excludes_processing_and_failed_items_from_closet(client, monkeypatch):
+    tops_id = _create_completed_item(category="tops")
+    processing_id = _create_completed_item(id=str(uuid.uuid4()), status="processing")
+    failed_id = _create_completed_item(id=str(uuid.uuid4()), status="failed", failure_reason="no_mask")
+
+    fake_client = MagicMock()
+    fake_client.chat.completions.create.return_value = _fake_openai_response(
+        json.dumps(
+            {"item_ids": [tops_id], "suggestion_text": "シンプルな一着です。", "styling_reason": "手持ちを活用。"}
+        )
+    )
+    monkeypatch.setattr(main_module.app.state, "openai_client", fake_client, raising=False)
+
+    resp = client.post("/api/suggest", json={"request_text": "今日のコーデ", "use_weather": False})
+
+    assert resp.status_code == 200
+    user_message = fake_client.chat.completions.create.call_args.kwargs["messages"][1]["content"]
+    assert tops_id in user_message
+    assert processing_id not in user_message
+    assert failed_id not in user_message
+
+
+def test_suggest_endpoint_weather_failure_returns_200_with_weather_unavailable(client, monkeypatch):
+    tops_id = _create_completed_item(category="tops")
+    monkeypatch.setattr(settings, "OPENWEATHER_API_KEY", None)
+
+    fake_client = MagicMock()
+    fake_client.chat.completions.create.return_value = _fake_openai_response(
+        json.dumps(
+            {
+                "item_ids": [tops_id],
+                "suggestion_text": "軽装で問題ありません。",
+                "styling_reason": "気候不明のため無難な提案。",
+            }
+        )
+    )
+    monkeypatch.setattr(main_module.app.state, "openai_client", fake_client, raising=False)
+
+    resp = client.post("/api/suggest", json={"request_text": "今日のコーデ"})
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["weather_available"] is False
+    assert body["weather"] is None
+
+    log_db = database_module.SessionLocal()
+    log = log_db.get(CoordinateLog, body["log_id"])
+    assert log.weather_json is None
+    log_db.close()
+
+
+def test_suggest_endpoint_excludes_invalid_item_ids_from_response(client, monkeypatch):
+    tops_id = _create_completed_item(category="tops")
+
+    fake_client = MagicMock()
+    fake_client.chat.completions.create.return_value = _fake_openai_response(
+        json.dumps(
+            {
+                "item_ids": [tops_id, "ghost-id"],
+                "suggestion_text": "シンプルにまとめました。",
+                "styling_reason": "実在アイテムのみ採用。",
+            }
+        )
+    )
+    monkeypatch.setattr(main_module.app.state, "openai_client", fake_client, raising=False)
+
+    resp = client.post("/api/suggest", json={"request_text": "今日のコーデ", "use_weather": False})
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert [item["id"] for item in body["items"]] == [tops_id]
+
+
+def test_suggest_endpoint_all_invalid_item_ids_returns_empty_items(client, monkeypatch):
+    _create_completed_item(category="tops")
+
+    fake_client = MagicMock()
+    fake_client.chat.completions.create.return_value = _fake_openai_response(
+        json.dumps(
+            {
+                "item_ids": ["ghost-1", "ghost-2"],
+                "suggestion_text": "該当するアイテムが見つかりませんでした。",
+                "styling_reason": "在庫不足。",
+            }
+        )
+    )
+    monkeypatch.setattr(main_module.app.state, "openai_client", fake_client, raising=False)
+
+    resp = client.post("/api/suggest", json={"request_text": "今日のコーデ", "use_weather": False})
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["items"] == []
+    assert body["suggestion_text"] == "該当するアイテムが見つかりませんでした。"
+
+
+def test_suggest_endpoint_llm_failure_returns_503_and_no_log(client, monkeypatch):
+    _create_completed_item(category="tops")
+
+    fake_client = MagicMock()
+    fake_client.chat.completions.create.return_value = _fake_openai_response("not valid json")
+    monkeypatch.setattr(main_module.app.state, "openai_client", fake_client, raising=False)
+    monkeypatch.setattr("app.services.suggest_service.time.sleep", lambda *_: None)
+
+    log_db = database_module.SessionLocal()
+    logs_before = log_db.query(CoordinateLog).count()
+    log_db.close()
+
+    resp = client.post("/api/suggest", json={"request_text": "今日のコーデ", "use_weather": False})
+
+    assert resp.status_code == 503
+    assert resp.json()["error_code"] == "service_unavailable"
+
+    log_db = database_module.SessionLocal()
+    logs_after = log_db.query(CoordinateLog).count()
+    log_db.close()
+    assert logs_after == logs_before
+
+
+def test_suggest_endpoint_blank_request_text_is_422(client):
+    resp = client.post("/api/suggest", json={"request_text": "   "})
+
+    assert resp.status_code == 422
+    assert resp.json()["error_code"] == "validation_error"
