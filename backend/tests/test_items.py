@@ -1,10 +1,11 @@
-"""design.md 6.4〜6.6節: GET /api/items(一覧・フィルタ・ページング)、GET /api/items/{id}、PATCH /api/items/{id}。"""
+"""design.md 6.4〜6.7節: GET /api/items(一覧・フィルタ・ページング)、GET /api/items/{id}、PATCH /api/items/{id}、DELETE /api/items/{id}。"""
 
 import uuid
 from datetime import datetime, timedelta, timezone
 
 import app.database as database_module
 from app.models.clothing_item import ClothingItem
+from app.services import storage_service
 
 
 def _create_item(**overrides):
@@ -320,3 +321,80 @@ def test_patch_failed_item_is_409(client):
 
     assert resp.status_code == 409
     assert resp.json()["error_code"] == "item_not_editable"
+
+
+def _write_item_files(item_id, ext="jpg"):
+    original = storage_service.original_path(item_id, ext)
+    original.write_bytes(b"fake original")
+    transparent = storage_service.transparent_path(item_id)
+    transparent.write_bytes(b"fake transparent")
+    mask = storage_service.mask_path(item_id)
+    mask.write_bytes(b"fake mask")
+    annotated = storage_service.annotated_path(item_id)
+    annotated.write_bytes(b"fake annotated")
+    return original, transparent, mask, annotated
+
+
+def test_delete_processing_item_is_409_and_keeps_record_and_files(client):
+    item_id = _create_item(status="processing", original_image_path=None, transparent_image_path=None)
+    original, transparent, mask, annotated = _write_item_files(item_id)
+
+    resp = client.delete(f"/api/items/{item_id}")
+
+    assert resp.status_code == 409
+    assert resp.json()["error_code"] == "item_is_processing"
+    assert original.exists()
+    assert transparent.exists()
+    assert mask.exists()
+    assert annotated.exists()
+    db = database_module.SessionLocal()
+    assert db.get(ClothingItem, item_id) is not None
+    db.close()
+
+
+def test_delete_completed_item_returns_204_and_removes_files_and_record(client):
+    item_id = _create_item(status="completed")
+    original, transparent, mask, annotated = _write_item_files(item_id)
+
+    resp = client.delete(f"/api/items/{item_id}")
+
+    assert resp.status_code == 204
+    assert not original.exists()
+    assert not transparent.exists()
+    assert not mask.exists()
+    assert not annotated.exists()
+    db = database_module.SessionLocal()
+    assert db.get(ClothingItem, item_id) is None
+    db.close()
+
+
+def test_delete_failed_item_removes_remaining_original_image_too(client):
+    item_id = _create_item(status="failed", failure_reason="no_mask", original_image_path=None, transparent_image_path=None)
+    original = storage_service.original_path(item_id, "jpg")
+    original.write_bytes(b"fake original")
+
+    resp = client.delete(f"/api/items/{item_id}")
+
+    assert resp.status_code == 204
+    assert not original.exists()
+    db = database_module.SessionLocal()
+    assert db.get(ClothingItem, item_id) is None
+    db.close()
+
+
+def test_delete_is_idempotent_when_files_already_missing(client):
+    item_id = _create_item(status="completed", original_image_path=None, transparent_image_path=None)
+
+    resp = client.delete(f"/api/items/{item_id}")
+
+    assert resp.status_code == 204
+    db = database_module.SessionLocal()
+    assert db.get(ClothingItem, item_id) is None
+    db.close()
+
+
+def test_delete_returns_404_for_missing_item(client):
+    resp = client.delete(f"/api/items/{uuid.uuid4()}")
+
+    assert resp.status_code == 404
+    assert resp.json()["error_code"] == "item_not_found"

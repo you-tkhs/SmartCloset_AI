@@ -1,4 +1,4 @@
-"""design.md 6.3〜6.6節・8.6節(b): items系エンドポイント。lazy stale検出は/statusでのみ行う。"""
+"""design.md 6.3〜6.7節・8.6節(b): items系エンドポイント。lazy stale検出は/statusでのみ行う。"""
 
 from typing import Literal
 
@@ -9,7 +9,7 @@ from app.database import get_db
 from app.models.clothing_item import ClothingItem
 from app.schemas.item import ItemListResponse, ItemResponse, ItemStatusResponse, ItemUpdateRequest
 from app.services.pipeline_service import recover_item_if_stale
-from app.services.storage_service import to_public_url
+from app.services.storage_service import delete_item_files, to_public_url
 
 router = APIRouter()
 
@@ -129,3 +129,20 @@ def update_item(item_id: str, payload: ItemUpdateRequest, db: Session = Depends(
     db.refresh(item)
 
     return _to_item_response(item)
+
+
+@router.delete("/api/items/{item_id}", status_code=204)
+def delete_item(item_id: str, db: Session = Depends(get_db)):
+    item = db.get(ClothingItem, item_id)
+    if item is None:
+        raise _error(404, "item_not_found", "指定されたアイテムが見つかりません。", False)
+
+    if item.status == "processing":
+        raise _error(
+            409, "item_is_processing", "AI処理中のため操作できません。処理完了後にお試しください。", True
+        )
+
+    # design.md 6.7節・10.4節: 原画像含む全種を物理削除(冪等・一部失敗してもレコード削除は続行)
+    delete_item_files(item_id)
+    db.delete(item)
+    db.commit()

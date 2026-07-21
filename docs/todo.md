@@ -524,15 +524,15 @@ chore(backend): プロジェクト雛形を作成
 - **変更対象ファイル**: `backend/app/routers/items.py`、`backend/tests/test_items.py`
 - **実装内容**: processing→409 item_is_processing。completed/failed→`delete_item_files(item_id)`(原画像含む全種・冪等)→レコード削除→204。ファイル一部削除失敗でもレコード削除は続行しWARNINGログ
 - **サブタスク(異常系)**:
-  - [ ] processing中のDELETE → 409、レコード・ファイルが残る
-  - [ ] completedのDELETE → 204、originals/transparent/masks/annotatedの実ファイルが消える
-  - [ ] **failedアイテムのDELETE → 204、残っていた原画像も物理削除される**
-  - [ ] 既にファイルが無い状態でのDELETE → 204(冪等)
+  - [x] processing中のDELETE → 409、レコード・ファイルが残る
+  - [x] completedのDELETE → 204、originals/transparent/masks/annotatedの実ファイルが消える
+  - [x] **failedアイテムのDELETE → 204、残っていた原画像も物理削除される**
+  - [x] 既にファイルが無い状態でのDELETE → 204(冪等)
 - **完了条件**: サブタスク含むテストgreen
 - **検証コマンド**: `cd backend && python -m pytest tests/test_items.py -q -k delete`
 - **想定される正常結果**: all passed
 - **推奨コミットメッセージ**: `feat(items): add physical deletion endpoint`
-- **チェック**: 実装済み [ ] / テスト済み [ ] / commit済み [ ] / push済み [ ]
+- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [x] / push済み [ ]
 - **commit hash**: ______
 - **備考**: 削除はstorage_serviceの共通関数のみ使用(重複実装禁止)
 
