@@ -710,8 +710,8 @@ chore(backend): プロジェクト雛形を作成
 - **検証コマンド**: `cd frontend && npx tsc --noEmit` + ブラウザ手動確認
 - **想定される正常結果**: 提案文と推奨アイテムがハイライト表示される
 - **推奨コミットメッセージ**: `feat(frontend): add coordinate suggestion page`
-- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [ ] / push済み [ ]
-- **commit hash**: ______
+- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [x] / push済み [ ]
+- **commit hash**: `2eede51`
 - **備考**: Playwrightで実backend(実LLM・実天気API)を使い正常系(推奨アイテムのハイライト表示)を確認。weather_available=false/items:[]/503+再試行はAPIモックで確認。テストで作成したデータはDELETE APIで削除済み
 
 ## T4-SR: Phase 4 セルフレビューと完了処理
