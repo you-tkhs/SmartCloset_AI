@@ -678,8 +678,8 @@ chore(backend): プロジェクト雛形を作成
 - **想定される正常結果**: 登録完了までUIがブロックせず遷移する
 - **想定される異常結果**: -
 - **推奨コミットメッセージ**: `feat(frontend): add upload flow with state machine and idempotent retry`
-- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [ ] / push済み [ ]
-- **commit hash**: ______
+- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [x] / push済み [ ]
+- **commit hash**: `a56d171`
 - **備考**: 状態名はdesign.md 12.3節と一致させる(コード上の定数名も同一)。Playwrightで実backend+実LLMを使い正常系(tops.jpg)・no_mask失敗・クライアント検証エラー・202前後の通信切断・二重送信防止・polling timeout(モックで30回ポーリング後に遷移)を確認。テスト後に作成したDB/storageのデータはDELETE APIで削除済み
 
 ## T4-4: アイテム詳細・編集画面(/items/[id])
