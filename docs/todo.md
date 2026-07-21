@@ -703,16 +703,16 @@ chore(backend): プロジェクト雛形を作成
 - **変更対象ファイル**: `frontend/src/app/suggest/page.tsx`、`components/SuggestForm.tsx`、`components/WeatherBadge.tsx`、`components/SuggestionResult.tsx`
 - **実装内容**: WeatherBadge(GET /api/weather。503時「天気情報を取得できませんでした」で提案は継続可能)。要望入力(空は送信不可)→POST /api/suggest(送信中無効化)→suggestion_text/styling_reason+推奨ItemCardハイライト。400 no_completed_items時は登録導線を表示
 - **サブタスク**:
-  - [ ] weather_available=false でも提案が表示される
-  - [ ] items:[](全ID無効)でもテキストだけ表示される
-  - [ ] 503時にエラートースト+再試行可能
+  - [x] weather_available=false でも提案が表示される
+  - [x] items:[](全ID無効)でもテキストだけ表示される
+  - [x] 503時にエラートースト+再試行可能
 - **完了条件**: 手動確認+tsc通過
 - **検証コマンド**: `cd frontend && npx tsc --noEmit` + ブラウザ手動確認
 - **想定される正常結果**: 提案文と推奨アイテムがハイライト表示される
 - **推奨コミットメッセージ**: `feat(frontend): add coordinate suggestion page`
-- **チェック**: 実装済み [ ] / テスト済み [ ] / commit済み [ ] / push済み [ ]
+- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [ ] / push済み [ ]
 - **commit hash**: ______
-- **備考**: ______
+- **備考**: Playwrightで実backend(実LLM・実天気API)を使い正常系(推奨アイテムのハイライト表示)を確認。weather_available=false/items:[]/503+再試行はAPIモックで確認。テストで作成したデータはDELETE APIで削除済み
 
 ## T4-SR: Phase 4 セルフレビューと完了処理
 
