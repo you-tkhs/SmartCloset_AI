@@ -514,7 +514,7 @@ chore(backend): プロジェクト雛形を作成
 - **想定される正常結果**: all passed
 - **推奨コミットメッセージ**: `feat(items): add metadata correction endpoint`
 - **チェック**: 実装済み [x] / テスト済み [x] / commit済み [x] / push済み [ ]
-- **commit hash**: ______
+- **commit hash**: `d1f513e`
 - **備考**: enumはdesign.md付録Aが正本。category/pattern/material/color_primary/silhouetteはcolor_secondaryと異なり非nullable(明示nullは422)
 
 ## T2-4: DELETE /api/items/{id}(物理削除)
