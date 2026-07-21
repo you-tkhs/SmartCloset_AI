@@ -692,9 +692,9 @@ chore(backend): プロジェクト雛形を作成
 - **検証コマンド**: `cd frontend && npx tsc --noEmit` + ブラウザ手動確認
 - **想定される正常結果**: PATCH後に is_user_corrected が立つ(API応答で確認)
 - **推奨コミットメッセージ**: `feat(frontend): add item detail with metadata correction`
-- **チェック**: 実装済み [ ] / テスト済み [ ] / commit済み [ ] / push済み [ ]
+- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [ ] / push済み [ ]
 - **commit hash**: ______
-- **備考**: enumセレクトの選択肢はdesign.md付録Aと同期
+- **備考**: enumセレクトの選択肢はdesign.md付録Aと同期。Playwrightで実backend(実LLM)を使い、画像切替・編集保存(is_user_corrected=true確認)・一覧への反映・409(item_is_processing、APIモック)トースト・削除確認ダイアログ→削除→一覧リダイレクトを確認。テストで作成したデータはDELETE APIで削除済み
 
 ## T4-5: コーデ提案画面(/suggest)
 
