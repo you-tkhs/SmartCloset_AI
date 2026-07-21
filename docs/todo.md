@@ -649,8 +649,8 @@ chore(backend): プロジェクト雛形を作成
 - **想定される正常結果**: 透過画像グリッドが表示される
 - **想定される異常結果**: 0件時は「衣服を登録しましょう」の空状態表示
 - **推奨コミットメッセージ**: `feat(frontend): add closet grid with filters`
-- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [ ] / push済み [ ]
-- **commit hash**: ______
+- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [x] / push済み [ ]
+- **commit hash**: `79ab64f`
 - **備考**: dev環境では`/images/*`がbackend(別オリジン)を指すため、`next.config.ts`にrewriteを追加(本番はCaddyが同一オリジンで処理。design.md 15.3節)。DBへ手動挿入したダミーcompleted/processing/failedデータで一覧・フィルタ・バッジ・空状態を確認後、削除済み
 
 ## T4-3: アップロード画面(/upload)— 状態機械
