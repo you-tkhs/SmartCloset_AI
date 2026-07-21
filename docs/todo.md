@@ -533,7 +533,7 @@ chore(backend): プロジェクト雛形を作成
 - **想定される正常結果**: all passed
 - **推奨コミットメッセージ**: `feat(items): add physical deletion endpoint`
 - **チェック**: 実装済み [x] / テスト済み [x] / commit済み [x] / push済み [ ]
-- **commit hash**: ______
+- **commit hash**: `0825f77`
 - **備考**: 削除はstorage_serviceの共通関数のみ使用(重複実装禁止)
 
 ## T2-SR: Phase 2 セルフレビューと完了処理
