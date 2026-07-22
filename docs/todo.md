@@ -754,9 +754,9 @@ chore(backend): プロジェクト雛形を作成
 - **検証コマンド**: uvicorn起動→curlアップロード→コンソールログ確認
 - **想定される正常結果**: resize/yolo/save/llm/db 各段階の所要時間ログ
 - **推奨コミットメッセージ**: `feat(app): add structured operational logging`
-- **チェック**: 実装済み [ ] / テスト済み [ ] / commit済み [ ] / push済み [ ]
-- **commit hash**: ______
-- **備考**: ______
+- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [x] / push済み [ ]
+- **commit hash**: `31d1c3a`
+- **備考**: 13.5節の必須ログ項目を突き合わせ、不足分を追加実装。(1)「アップロード受付/完了」item_id・受信サイズ・所要時間のINFOログを`upload.py`に新設(ファイル名・パスは記録しない)。(2)「検証失敗」error_codeのみをINFOログに残す`_validation_error`ヘルパーを追加(file_too_large/unsupported_media_type/invalid_image/idempotency_key_conflict/validation_error)。(3)「LLMリトライ」`llm_service.extract_metadata`にitem_id引数を追加し試行回数・失敗種別と併せてログに残すよう変更(呼び出し元`pipeline_service.py`・関連テストのシグネチャも追随)。(4)「ファイル削除失敗」`storage_service._safe_unlink`をitem_id・種別(kind)を引数化し構造化。パイプライン各段階・ロック待機・stale復旧・無効LLM item_id除外は既存実装で13.5節を満たすことを確認済み。自動テストで各ログ出力をcaplog検証(`test_upload.py`・`test_services.py`)。完了条件の手動確認は実施済み: `.env`の実キー・実モデル重みでuvicorn起動→`tests/fixtures/tops.jpg`をcurlアップロード→resize(0.001s)/yolo(15.252s)/save(0.751s)/llm(8.714s)/db(0.085s)の各段階ログとsemaphore待機ログを確認(生成したdata/storageはテスト用でgitignore対象・commit対象外)。`cd backend && python -m pytest -m "not yolo" -q` で129 passed。
 
 ## T5-3: README(起動手順)
 
