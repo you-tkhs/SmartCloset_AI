@@ -740,8 +740,8 @@ chore(backend): プロジェクト雛形を作成
 - **検証コマンド**: `cd backend && python -m pytest tests/test_security.py -q` / `grep -rn "$OPENAI_API_KEY" logs等`(該当なし)
 - **想定される正常結果**: all passed
 - **推奨コミットメッセージ**: `fix(app): finalize error responses and prevent information leaks`
-- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [ ] / push済み [ ]
-- **commit hash**: ______
+- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [x] / push済み [ ]
+- **commit hash**: `04d824a`
 - **備考**: design.md 13.4節・9.6節(情報の役割分担)。突き合わせで発見した差分を修正: (1) `database_error`(13.2節「全API」)が`upload.py`にしか実装されていなかったため、`items.py`のPATCH/DELETE commitと`suggest_service.py`のcoordinate_log commitにSQLAlchemyError→503 database_errorのハンドリングを追加。(2) `main.py`のOpenAIクライアント初期化(`OpenAI(api_key=...)`)が未ガードで13.4節「外部APIクライアント初期化エラーはメッセージを固定文字列に差し替えて記録する」に非準拠だったため、try/exceptで固定メッセージのログに差し替え、client=Noneで継続するよう修正。監査テストは`test_security.py`に集約(全error_codeレスポンスの絶対パス・Traceback・APIキー非漏洩の横断チェック、500 internal_errorの非漏洩、OpenAIクライアント初期化失敗時・LLM認証エラー時にAPIキーがログへ転記されないことをcaplogで検証)。`cd backend && python -m pytest -m "not yolo" -q` で125 passed(既存117件+新規8件)。
 
 ## T5-2: ロギング整備
