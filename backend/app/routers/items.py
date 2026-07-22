@@ -1,8 +1,10 @@
 """design.md 6.3〜6.7節・8.6節(b): items系エンドポイント。lazy stale検出は/statusでのみ行う。"""
 
+import logging
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -10,6 +12,8 @@ from app.models.clothing_item import ClothingItem
 from app.schemas.item import ItemListResponse, ItemResponse, ItemStatusResponse, ItemUpdateRequest
 from app.services.pipeline_service import recover_item_if_stale
 from app.services.storage_service import delete_item_files, to_public_url
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -125,7 +129,14 @@ def update_item(item_id: str, payload: ItemUpdateRequest, db: Session = Depends(
         setattr(item, field, value)
     item.is_user_corrected = True
 
-    db.commit()
+    try:
+        db.commit()
+    except SQLAlchemyError as e:
+        db.rollback()
+        logger.error("item %s: update commit failed", item_id)
+        raise _error(
+            503, "database_error", "サーバーが混み合っています。しばらく待ってから再度お試しください。", True
+        ) from e
     db.refresh(item)
 
     return to_item_response(item)
@@ -145,4 +156,11 @@ def delete_item(item_id: str, db: Session = Depends(get_db)):
     # design.md 6.7節・10.4節: 原画像含む全種を物理削除(冪等・一部失敗してもレコード削除は続行)
     delete_item_files(item_id)
     db.delete(item)
-    db.commit()
+    try:
+        db.commit()
+    except SQLAlchemyError as e:
+        db.rollback()
+        logger.error("item %s: delete commit failed", item_id)
+        raise _error(
+            503, "database_error", "サーバーが混み合っています。しばらく待ってから再度お試しください。", True
+        ) from e

@@ -1,6 +1,7 @@
 """design.md 6.8節・11.1節・11.4節: POST /api/suggest。"""
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -47,6 +48,13 @@ def post_suggest(payload: SuggestRequest, db: Session = Depends(get_db)):
             503,
             "service_unavailable",
             "提案の生成に失敗しました。しばらく待ってから再度お試しください。",
+            True,
+        ) from e
+    except SQLAlchemyError as e:
+        raise _error(
+            503,
+            "database_error",
+            "サーバーが混み合っています。しばらく待ってから再度お試しください。",
             True,
         ) from e
 

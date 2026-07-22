@@ -35,7 +35,12 @@ async def lifespan(app: FastAPI):
     app.state.yolo_model = YOLO(str(model_path))
 
     if settings.OPENAI_API_KEY:
-        app.state.openai_client = OpenAI(api_key=settings.OPENAI_API_KEY)
+        try:
+            app.state.openai_client = OpenAI(api_key=settings.OPENAI_API_KEY)
+        except Exception:
+            # design.md 13.4節: 外部APIクライアント初期化エラーはメッセージを固定文字列に差し替えて記録する
+            logger.error("failed to initialize OpenAI client")
+            app.state.openai_client = None
     else:
         app.state.openai_client = None
         logger.warning("OPENAI_API_KEY is not set; OpenAI client disabled")

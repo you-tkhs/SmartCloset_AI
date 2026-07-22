@@ -11,6 +11,7 @@ import uuid
 from dataclasses import dataclass
 
 from openai import APIConnectionError, APITimeoutError, InternalServerError, OpenAIError, RateLimitError
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -152,7 +153,12 @@ def create_suggestion(db: Session, request_text: str, weather: WeatherInfo | Non
         model_name=settings.OPENAI_MODEL,
     )
     db.add(log)
-    db.commit()
+    try:
+        db.commit()
+    except SQLAlchemyError:
+        db.rollback()
+        logger.error("suggest: coordinate log commit failed")
+        raise
 
     return SuggestionResult(
         suggestion_text=data["suggestion_text"],

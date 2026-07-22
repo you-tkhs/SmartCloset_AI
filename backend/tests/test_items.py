@@ -3,7 +3,11 @@
 import uuid
 from datetime import datetime, timedelta, timezone
 
+from sqlalchemy.exc import SQLAlchemyError
+
 import app.database as database_module
+import app.main as main_module
+from app.database import get_db
 from app.models.clothing_item import ClothingItem
 from app.services import storage_service
 
@@ -321,6 +325,46 @@ def test_patch_failed_item_is_409(client):
 
     assert resp.status_code == 409
     assert resp.json()["error_code"] == "item_not_editable"
+
+
+def _override_get_db_failing_commit():
+    """design.md 13.2節: commit()失敗時に503 database_errorへ変換されることを確認するためのDependsオーバーライド。"""
+
+    def _override():
+        db = database_module.SessionLocal()
+        real_commit = db.commit
+
+        def _commit():
+            db.commit = real_commit
+            raise SQLAlchemyError("simulated commit failure")
+
+        db.commit = _commit
+        try:
+            yield db
+        finally:
+            db.close()
+
+    return _override
+
+
+def test_patch_commit_failure_returns_503_database_error(client, monkeypatch):
+    item_id = _create_item(category="tops", color_primary="白")
+    monkeypatch.setitem(main_module.app.dependency_overrides, get_db, _override_get_db_failing_commit())
+
+    resp = client.patch(f"/api/items/{item_id}", json={"category": "outer"})
+
+    assert resp.status_code == 503
+    assert resp.json()["error_code"] == "database_error"
+
+
+def test_delete_commit_failure_returns_503_database_error(client, monkeypatch):
+    item_id = _create_item(status="completed")
+    monkeypatch.setitem(main_module.app.dependency_overrides, get_db, _override_get_db_failing_commit())
+
+    resp = client.delete(f"/api/items/{item_id}")
+
+    assert resp.status_code == 503
+    assert resp.json()["error_code"] == "database_error"
 
 
 def _write_item_files(item_id, ext="jpg"):

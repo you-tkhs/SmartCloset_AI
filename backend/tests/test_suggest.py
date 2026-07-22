@@ -6,10 +6,12 @@ from unittest.mock import MagicMock
 
 import httpx
 import pytest
+from sqlalchemy.exc import SQLAlchemyError
 
 import app.database as database_module
 import app.main as main_module
 from app.config import settings
+from app.database import get_db
 from app.models.clothing_item import ClothingItem
 from app.models.coordinate_log import CoordinateLog
 from app.schemas.suggest import SuggestRequest
@@ -384,6 +386,44 @@ def test_suggest_endpoint_llm_failure_returns_503_and_no_log(client, monkeypatch
     logs_after = log_db.query(CoordinateLog).count()
     log_db.close()
     assert logs_after == logs_before
+
+
+def test_suggest_endpoint_coordinate_log_commit_failure_returns_503_database_error(client, monkeypatch):
+    """design.md 13.2節: coordinate_logs保存失敗はdatabase_errorへ変換する。"""
+    _create_completed_item(category="tops")
+
+    fake_client = MagicMock()
+    fake_client.chat.completions.create.return_value = _fake_openai_response(
+        json.dumps(
+            {
+                "item_ids": [],
+                "suggestion_text": "きれいめカジュアルな組み合わせです。",
+                "styling_reason": "白トップスとデニムでバランス良く。",
+            }
+        )
+    )
+    monkeypatch.setattr(main_module.app.state, "openai_client", fake_client, raising=False)
+
+    def _override_get_db_failing_commit():
+        db = database_module.SessionLocal()
+        real_commit = db.commit
+
+        def _commit():
+            db.commit = real_commit
+            raise SQLAlchemyError("simulated commit failure")
+
+        db.commit = _commit
+        try:
+            yield db
+        finally:
+            db.close()
+
+    monkeypatch.setitem(main_module.app.dependency_overrides, get_db, _override_get_db_failing_commit)
+
+    resp = client.post("/api/suggest", json={"request_text": "今日のコーデ", "use_weather": False})
+
+    assert resp.status_code == 503
+    assert resp.json()["error_code"] == "database_error"
 
 
 def test_suggest_endpoint_blank_request_text_is_422(client):
