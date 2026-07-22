@@ -72,9 +72,60 @@ Caddy(:443) ── 外部公開はここのみ・自動HTTPS
 - モデルレベルの mAP: [docs/val_result_9class_30epoch_data_augmentation.md](docs/val_result_9class_30epoch_data_augmentation.md)
 - 登録率のボトルネックはYOLO切り出し精度(watch等)。アプリではメタデータの手動補正機能で運用カバーし、補正データを再学習に還元する設計([design.md 18.2節](docs/design.md))
 
-## 動かし方(現時点: AIパイプライン)
+## Webアプリの動かし方(開発環境)
 
-Webアプリは実装中のため、現在動かせるのはAIパイプラインのNotebookです。
+### 必要なもの
+
+- Python 3.12
+- Node.js 20系
+- 学習済みモデル重み `models/fashionpedia_9class_with_data_augmentation.pt`(リポジトリ直下の`models/`に配置。**Git管理外**のため別途用意が必要。再現手順は `training/` のNotebook参照)
+- OpenAI APIキー、OpenWeatherMap APIキー(無料プラン)
+
+### backend起動
+
+```bash
+cd backend
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env   # OPENAI_API_KEY・OPENWEATHER_API_KEYを設定(DEFAULT_CITY・DATABASE_URLは既定値のままで可)
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1
+```
+
+起動確認: 別ターミナルで `curl localhost:8000/api/health` → `model_loaded:true` を含むレスポンスが返ればOK。
+モデル重みが `MODEL_PATH`(既定 `../models/fashionpedia_9class_with_data_augmentation.pt`)に無い場合は起動時に失敗する(意図した挙動)。
+
+### backendテスト
+
+```bash
+cd backend && python -m pytest -m "not yolo" -q
+```
+
+YOLO実推論を伴うテストは `-m yolo` で個別実行(モデル重みが無い環境では自動スキップ)。全テストは `python -m pytest -q`。
+
+### frontend起動
+
+```bash
+cd frontend
+npm install
+echo "NEXT_PUBLIC_API_BASE_URL=http://localhost:8000" > .env.local
+npm run dev
+```
+
+`http://localhost:3000` をブラウザで開く(backendが起動している必要あり)。
+
+### frontend型チェック・ビルド確認
+
+```bash
+cd frontend
+npx tsc --noEmit
+npm run build
+```
+
+- 設計・APIの詳細は [docs/design.md](docs/design.md)、実装タスクの進行状況は [docs/todo.md](docs/todo.md) を参照。
+
+## AIパイプラインNotebook(PoC・単体)
+
+Webアプリを介さずAIパイプライン単体を試す場合:
 
 ```bash
 git clone https://github.com/you-tkhs/SmartCloset_AI.git
@@ -85,19 +136,18 @@ echo "OPENAI_API_KEY=sk-..." > .env
 jupyter lab ai_prototype/pipe-line/smartcloset_pipeline_functioned.ipynb
 ```
 
-- **注意**: 学習済みモデル重み(`models/fashionpedia_9class_with_data_augmentation.pt`)はGit管理外のため、リポジトリのcloneだけでは実行できません(再現には Fashionpedia+補強データでの学習が必要。手順は `training/` のNotebook参照)
-- Webアプリ(FastAPI + Next.js)の起動手順は Phase 5 完了時にここへ追記します <!-- TODO(T5-3) -->
+- **注意**: こちらもモデル重みはGit管理外のため、リポジトリのcloneだけでは実行できません
 
 ## ロードマップ
 
 実装は [docs/todo.md](docs/todo.md) のタスクに沿って進行(進捗の正本もtodo.md)。
 
 - [x] AIロジックPoC(セグメンテーション・属性抽出・評価)
-- [ ] Phase 0: backend基盤(FastAPI・SQLite・ヘルスチェック)
-- [ ] Phase 1: 画像アップロード+AIパイプライン(非同期処理・異常系)
-- [ ] Phase 2: クローゼットCRUD(閲覧・手動補正・削除)
-- [ ] Phase 3: コーディネート提案(天気API+LLM)
-- [ ] Phase 4: フロントエンド(Next.js 4画面)
+- [x] Phase 0: backend基盤(FastAPI・SQLite・ヘルスチェック)
+- [x] Phase 1: 画像アップロード+AIパイプライン(非同期処理・異常系)
+- [x] Phase 2: クローゼットCRUD(閲覧・手動補正・削除)
+- [x] Phase 3: コーディネート提案(天気API+LLM)
+- [x] Phase 4: フロントエンド(Next.js 4画面)
 - [ ] Phase 5: 仕上げ(エラー処理・ログ・README起動手順)
 - [ ] Phase 6: デプロイ(Oracle Cloud・¥0運用・バックアップ)
 
