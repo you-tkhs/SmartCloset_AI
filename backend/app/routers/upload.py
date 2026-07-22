@@ -2,6 +2,7 @@
 
 import errno
 import logging
+import time
 import uuid
 from pathlib import Path
 
@@ -32,6 +33,12 @@ def _error(status_code: int, error_code: str, detail: str, retryable: bool) -> H
     )
 
 
+def _validation_error(status_code: int, error_code: str, detail: str, retryable: bool) -> HTTPException:
+    """design.md 13.5節「検証失敗」: ファイル名・パスは記録せずerror_codeのみログに残す。"""
+    logger.info("upload validation failed: error_code=%s", error_code)
+    return _error(status_code, error_code, detail, retryable)
+
+
 def _existing_item_response(response: Response, item: ClothingItem) -> UploadAcceptedResponse:
     """design.md 7.7節: 既存Idempotency-Keyヒット時の応答(processing以外は200)。"""
     if item.status != "processing":
@@ -48,11 +55,13 @@ async def upload_item(
     idempotency_key: str = Header(alias="Idempotency-Key"),
     db: Session = Depends(get_db),
 ):
+    request_start = time.monotonic()
+
     # 手順1: Idempotency-Keyの存在(Header必須指定で保証済み)・UUID形式検証
     try:
         uuid.UUID(idempotency_key)
     except ValueError as e:
-        raise _error(422, "validation_error", "Idempotency-Keyの形式が不正です。", False) from e
+        raise _validation_error(422, "validation_error", "Idempotency-Keyの形式が不正です。", False) from e
 
     # 手順2: Content-Length事前確認(実受信サイズを最終基準とする点はsave_upload_to_tmp側で担保)
     content_length = request.headers.get("content-length")
@@ -62,7 +71,7 @@ async def upload_item(
         except ValueError:
             declared_size = None
         if declared_size is not None and declared_size > settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024:
-            raise _error(413, "file_too_large", "10MB以下の画像をご利用ください。", False)
+            raise _validation_error(413, "file_too_large", "10MB以下の画像をご利用ください。", False)
 
     tmp_path: Path | None = None
     try:
@@ -70,7 +79,7 @@ async def upload_item(
         try:
             upload_result = await storage_service.save_upload_to_tmp(file)
         except FileTooLargeError as e:
-            raise _error(413, "file_too_large", "10MB以下の画像をご利用ください。", False) from e
+            raise _validation_error(413, "file_too_large", "10MB以下の画像をご利用ください。", False) from e
         except InsufficientStorageError as e:
             raise _error(
                 503,
@@ -87,7 +96,7 @@ async def upload_item(
         existing_item = db.query(ClothingItem).filter(ClothingItem.idempotency_key == idempotency_key).first()
         if existing_item is not None:
             if existing_item.upload_sha256 != upload_result.sha256:
-                raise _error(
+                raise _validation_error(
                     409,
                     "idempotency_key_conflict",
                     "同一のIdempotency-Keyで異なる画像が送信されました。",
@@ -99,9 +108,11 @@ async def upload_item(
         try:
             normalized = validate_and_normalize(tmp_path, file.content_type, file.filename)
         except UnsupportedMediaTypeError as e:
-            raise _error(415, "unsupported_media_type", "JPEG/PNG形式のみ対応しています。", False) from e
+            raise _validation_error(415, "unsupported_media_type", "JPEG/PNG形式のみ対応しています。", False) from e
         except InvalidImageError as e:
-            raise _error(400, "invalid_image", "画像を読み込めませんでした。別のファイルをお試しください。", False) from e
+            raise _validation_error(
+                400, "invalid_image", "画像を読み込めませんでした。別のファイルをお試しください。", False
+            ) from e
 
         # 手順11: item_id生成
         item_id = str(uuid.uuid4())
@@ -188,6 +199,12 @@ async def upload_item(
             raise _error(500, "internal_error", "サーバーエラーが発生しました。再度お試しください。", True) from e
 
         # 手順16: 202 Accepted(ここまで全成功時のみ)
+        logger.info(
+            "item %s: upload accepted (received=%dbytes, elapsed=%.3fs)",
+            item_id,
+            upload_result.size,
+            time.monotonic() - request_start,
+        )
         return UploadAcceptedResponse(item_id=item_id, status="processing")
     finally:
         # 手順17: tmpは成功・失敗にかかわらず必ず削除

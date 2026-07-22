@@ -1,6 +1,7 @@
 import asyncio
 import errno
 import io
+import logging
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -293,7 +294,7 @@ def _upload_shoes_jpg(client, idempotency_key: str | None):
 
 def test_upload_happy_path_returns_202_then_completes(client, monkeypatch):
     monkeypatch.setattr(pipeline_service, "segment_item", lambda model, path, conf: _fake_success_segment_result())
-    monkeypatch.setattr(pipeline_service, "extract_metadata", lambda openai_client, path: _valid_metadata_dict())
+    monkeypatch.setattr(pipeline_service, "extract_metadata", lambda openai_client, path, item_id: _valid_metadata_dict())
 
     response = _upload_tops_jpg(client, str(uuid.uuid4()))
 
@@ -312,6 +313,39 @@ def test_upload_happy_path_returns_202_then_completes(client, monkeypatch):
     assert item.original_image_path is not None
     assert Path(item.original_image_path).exists()
     assert list((Path(settings.STORAGE_DIR) / "tmp").glob("*")) == []
+
+
+def test_upload_success_logs_item_id_size_and_duration(client, monkeypatch, caplog):
+    """design.md 13.5節「アップロード受付/完了」: item_id・受信サイズ・所要時間をINFOログに残す。"""
+    monkeypatch.setattr(pipeline_service, "segment_item", lambda model, path, conf: _fake_success_segment_result())
+    monkeypatch.setattr(pipeline_service, "extract_metadata", lambda openai_client, path, item_id: _valid_metadata_dict())
+
+    with caplog.at_level(logging.INFO, logger="app.routers.upload"):
+        response = _upload_tops_jpg(client, str(uuid.uuid4()))
+
+    assert response.status_code == 202
+    item_id = response.json()["item_id"]
+
+    accepted_records = [r for r in caplog.records if item_id in r.message and "upload accepted" in r.message]
+    assert len(accepted_records) == 1
+    assert "bytes" in accepted_records[0].message
+    assert "elapsed=" in accepted_records[0].message
+
+
+def test_upload_validation_failure_logs_error_code_without_filename(client, caplog):
+    """design.md 13.5節「検証失敗」: error_codeのみ記録し、ファイル名は記録しない。"""
+    with caplog.at_level(logging.INFO, logger="app.routers.upload"):
+        response = client.post(
+            "/api/upload",
+            files={"file": ("secret_filename.jpg", (FIXTURES_DIR / "fake.jpg").read_bytes(), "image/jpeg")},
+            headers={"Idempotency-Key": str(uuid.uuid4())},
+        )
+
+    assert response.status_code == 415
+    validation_records = [r for r in caplog.records if "validation failed" in r.message]
+    assert len(validation_records) == 1
+    assert "unsupported_media_type" in validation_records[0].message
+    assert "secret_filename" not in validation_records[0].message
 
 
 def test_upload_provisional_registration_failure_returns_503(client, monkeypatch):
@@ -464,7 +498,7 @@ def test_upload_idempotency_key_resend_while_processing_returns_202_without_new_
 
 def test_upload_idempotency_key_resend_while_completed_returns_200(client, monkeypatch):
     monkeypatch.setattr(pipeline_service, "segment_item", lambda model, path, conf: _fake_success_segment_result())
-    monkeypatch.setattr(pipeline_service, "extract_metadata", lambda openai_client, path: _valid_metadata_dict())
+    monkeypatch.setattr(pipeline_service, "extract_metadata", lambda openai_client, path, item_id: _valid_metadata_dict())
     key = str(uuid.uuid4())
 
     first = _upload_tops_jpg(client, key)
@@ -670,7 +704,7 @@ def yolo_client(tmp_path, monkeypatch):
 @pytest.mark.yolo
 def test_upload_e2e_with_real_yolo_completes_with_six_attributes_and_transparent_png(yolo_client, monkeypatch):
     metadata = _valid_metadata_dict()
-    monkeypatch.setattr(pipeline_service, "extract_metadata", lambda openai_client, path: metadata)
+    monkeypatch.setattr(pipeline_service, "extract_metadata", lambda openai_client, path, item_id: metadata)
 
     response = _upload_tops_jpg(yolo_client, str(uuid.uuid4()))
     assert response.status_code == 202

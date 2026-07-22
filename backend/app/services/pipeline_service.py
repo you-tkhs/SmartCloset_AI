@@ -138,7 +138,7 @@ def _run_pipeline_locked(item_id: str) -> None:
 
         step_start = time.monotonic()
         try:
-            metadata = extract_metadata(client, storage_service.transparent_path(item_id))
+            metadata = extract_metadata(client, storage_service.transparent_path(item_id), item_id)
         except LlmServiceError:
             mark_item_failed(db, item, "llm_error")
             return

@@ -253,7 +253,7 @@ def test_llm_service_non_retryable_error_does_not_log_secret(tmp_path, monkeypat
 
     with caplog.at_level(logging.WARNING):
         with pytest.raises(LlmServiceError):
-            extract_metadata(client, image_path)
+            extract_metadata(client, image_path, "test-item")
 
     assert _DUMMY_API_KEY not in caplog.text
 

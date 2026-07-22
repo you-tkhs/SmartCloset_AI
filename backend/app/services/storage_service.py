@@ -78,23 +78,32 @@ def work_path(item_id: str) -> Path:
     return _storage_dir() / "tmp" / f"{item_id}_work.png"
 
 
-def _safe_unlink(path: Path) -> None:
+def _safe_unlink(path: Path, item_id: str | None = None, kind: str | None = None) -> None:
+    """design.md 13.5節「ファイル削除失敗」: item_id・種別をログに残す(冪等・存在しなければ無視)。"""
     try:
         path.unlink()
     except FileNotFoundError:
         pass
     except OSError:
-        logger.warning("failed to delete file: %s", path.name)
+        if item_id is not None:
+            logger.warning("item %s: failed to delete %s file", item_id, kind)
+        else:
+            logger.warning("failed to delete file: %s", path.name)
 
 
 def delete_generated_files(item_id: str) -> None:
-    for path in (transparent_path(item_id), mask_path(item_id), annotated_path(item_id), work_path(item_id)):
-        _safe_unlink(path)
+    for kind, path in (
+        ("transparent", transparent_path(item_id)),
+        ("mask", mask_path(item_id)),
+        ("annotated", annotated_path(item_id)),
+        ("work", work_path(item_id)),
+    ):
+        _safe_unlink(path, item_id=item_id, kind=kind)
 
 
 def delete_item_files(item_id: str) -> None:
     for path in _storage_dir().glob(f"originals/{item_id}_original.*"):
-        _safe_unlink(path)
+        _safe_unlink(path, item_id=item_id, kind="original")
     delete_generated_files(item_id)
 
 

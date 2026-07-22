@@ -1,4 +1,5 @@
 import json
+import logging
 import threading
 import time
 import uuid
@@ -85,6 +86,25 @@ def test_storage_delete_item_files_removes_all_kinds(tmp_path, monkeypatch):
     assert not storage_service.mask_path(item_id).exists()
     assert not storage_service.annotated_path(item_id).exists()
     assert not storage_service.work_path(item_id).exists()
+
+
+def test_storage_delete_failure_logs_item_id_and_kind(tmp_path, monkeypatch, caplog):
+    """design.md 13.5節「ファイル削除失敗」: item_id・種別をWARNINGログに残す。"""
+    monkeypatch.setattr(settings, "STORAGE_DIR", str(tmp_path / "storage"))
+    storage_service.init_storage()
+    item_id = "item-delete-fail"
+    storage_service.transparent_path(item_id).write_bytes(b"x")
+
+    def _raise_permission_error(self):
+        raise PermissionError("simulated delete failure")
+
+    monkeypatch.setattr(Path, "unlink", _raise_permission_error)
+
+    with caplog.at_level(logging.WARNING):
+        storage_service.delete_generated_files(item_id)
+
+    matching = [r for r in caplog.records if item_id in r.message and "transparent" in r.message]
+    assert len(matching) == 1
 
 
 def test_storage_delete_generated_files_keeps_original(tmp_path, monkeypatch):
@@ -188,7 +208,7 @@ def test_llm_extract_metadata_success(tmp_path, monkeypatch):
     client = MagicMock()
     client.chat.completions.create.return_value = _fake_openai_response(_valid_metadata_json())
 
-    result = extract_metadata(client, image_path)
+    result = extract_metadata(client, image_path, "test-item")
 
     assert result["category"] == "tops"
     assert result["color_secondary"] is None
@@ -205,9 +225,28 @@ def test_llm_extract_metadata_retries_then_raises_on_api_failure(tmp_path, monke
     client.chat.completions.create.side_effect = APIConnectionError(request=request)
 
     with pytest.raises(LlmServiceError):
-        extract_metadata(client, image_path)
+        extract_metadata(client, image_path, "test-item")
 
     assert client.chat.completions.create.call_count == settings.OPENAI_MAX_RETRIES + 1
+
+
+def test_llm_extract_metadata_retry_warning_includes_item_id(tmp_path, monkeypatch, caplog):
+    """design.md 13.5節「LLMリトライ」: item_id・試行回数・失敗種別をWARNINGログに残す。"""
+    monkeypatch.setattr(llm_service.time, "sleep", lambda seconds: None)
+    image_path = tmp_path / "img.png"
+    image_path.write_bytes(b"fake-image-bytes")
+
+    request = httpx.Request("POST", "https://api.openai.com/v1/chat/completions")
+    client = MagicMock()
+    client.chat.completions.create.side_effect = APIConnectionError(request=request)
+
+    with caplog.at_level(logging.WARNING):
+        with pytest.raises(LlmServiceError):
+            extract_metadata(client, image_path, "item-retry-test")
+
+    retry_records = [r for r in caplog.records if "item-retry-test" in r.message]
+    assert len(retry_records) == settings.OPENAI_MAX_RETRIES + 2  # 各試行 + 最終失敗ログ
+    assert "APIConnectionError" in retry_records[0].message
 
 
 def test_llm_extract_metadata_recovers_from_code_fenced_json(tmp_path, monkeypatch):
@@ -219,7 +258,7 @@ def test_llm_extract_metadata_recovers_from_code_fenced_json(tmp_path, monkeypat
     client = MagicMock()
     client.chat.completions.create.return_value = _fake_openai_response(fenced)
 
-    result = extract_metadata(client, image_path)
+    result = extract_metadata(client, image_path, "test-item")
 
     assert result["category"] == "tops"
     assert client.chat.completions.create.call_count == 1
@@ -234,14 +273,14 @@ def test_llm_extract_metadata_unrecoverable_json_retries_then_raises(tmp_path, m
     client.chat.completions.create.return_value = _fake_openai_response("not valid json at all")
 
     with pytest.raises(LlmServiceError):
-        extract_metadata(client, image_path)
+        extract_metadata(client, image_path, "test-item")
 
     assert client.chat.completions.create.call_count == settings.OPENAI_MAX_RETRIES + 1
 
 
 def test_llm_extract_metadata_none_client_raises_immediately_without_retry():
     with pytest.raises(LlmServiceError):
-        extract_metadata(None, Path("unused.png"))
+        extract_metadata(None, Path("unused.png"), "test-item")
 
 
 def test_llm_extract_metadata_non_retryable_error_raises_immediately_without_retry(tmp_path, monkeypatch):
@@ -255,7 +294,7 @@ def test_llm_extract_metadata_non_retryable_error_raises_immediately_without_ret
     client.chat.completions.create.side_effect = AuthenticationError("invalid api key", response=response, body=None)
 
     with pytest.raises(LlmServiceError):
-        extract_metadata(client, image_path)
+        extract_metadata(client, image_path, "test-item")
 
     assert client.chat.completions.create.call_count == 1
 
@@ -362,7 +401,7 @@ def test_pipeline_llm_failure_marks_failed_and_cleans_generated_files(pipeline_e
 
     monkeypatch.setattr(pipeline_service, "segment_item", lambda model, path, conf: _fake_success_segment_result())
 
-    def _fake_extract_metadata(client, image_path):
+    def _fake_extract_metadata(client, image_path, item_id):
         raise LlmServiceError("boom")
 
     monkeypatch.setattr(pipeline_service, "extract_metadata", _fake_extract_metadata)
@@ -419,7 +458,7 @@ def test_pipeline_serializes_concurrent_executions(pipeline_env, monkeypatch):
         return _fake_success_segment_result()
 
     monkeypatch.setattr(pipeline_service, "segment_item", _slow_segment)
-    monkeypatch.setattr(pipeline_service, "extract_metadata", lambda client, path: _valid_metadata_dict())
+    monkeypatch.setattr(pipeline_service, "extract_metadata", lambda client, path, item_id: _valid_metadata_dict())
 
     t1 = threading.Thread(target=run_pipeline_for_item, args=(item_id_1,))
     t2 = threading.Thread(target=run_pipeline_for_item, args=(item_id_2,))
@@ -449,7 +488,7 @@ def test_pipeline_creates_and_closes_session_per_task(pipeline_env, monkeypatch)
 
     monkeypatch.setattr(pipeline_service, "create_session", _spy_create_session)
     monkeypatch.setattr(pipeline_service, "segment_item", lambda model, path, conf: _fake_success_segment_result())
-    monkeypatch.setattr(pipeline_service, "extract_metadata", lambda client, path: _valid_metadata_dict())
+    monkeypatch.setattr(pipeline_service, "extract_metadata", lambda client, path, item_id: _valid_metadata_dict())
 
     run_pipeline_for_item(item_id)
 

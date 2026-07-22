@@ -74,7 +74,7 @@ def _is_valid_metadata(data: dict) -> bool:
     return True
 
 
-def extract_metadata(client: OpenAI, image_path: Path) -> dict:
+def extract_metadata(client: OpenAI, image_path: Path, item_id: str) -> dict:
     """透過PNGをbase64で送り、6属性のdictを返す。
 
     OpenAI呼び出しはOPENAI_MAX_RETRIES回まで指数バックオフ(1秒→2秒)でリトライする。
@@ -83,7 +83,7 @@ def extract_metadata(client: OpenAI, image_path: Path) -> dict:
     OpenAIError(認証エラー等)が発生した場合は、リトライせず即座にLlmServiceErrorを送出する。
     """
     if client is None:
-        logger.warning("OpenAI client is not configured (OPENAI_API_KEY unset)")
+        logger.warning("item %s: OpenAI client is not configured (OPENAI_API_KEY unset)", item_id)
         raise LlmServiceError("openai client not configured")
 
     base64_image = _image_to_base64(image_path)
@@ -119,13 +119,21 @@ def extract_metadata(client: OpenAI, image_path: Path) -> dict:
             )
         except _RETRYABLE_API_ERRORS as e:
             last_error = e
-            logger.warning("OpenAI API call failed (attempt %d/%d): %s", attempt + 1, settings.OPENAI_MAX_RETRIES + 1, type(e).__name__)
+            logger.warning(
+                "item %s: OpenAI API call failed (attempt %d/%d): %s",
+                item_id,
+                attempt + 1,
+                settings.OPENAI_MAX_RETRIES + 1,
+                type(e).__name__,
+            )
             if not is_last_attempt:
                 time.sleep(delay)
                 delay *= 2
             continue
         except OpenAIError as e:
-            logger.warning("OpenAI API call failed with non-retryable error: %s", type(e).__name__)
+            logger.warning(
+                "item %s: OpenAI API call failed with non-retryable error: %s", item_id, type(e).__name__
+            )
             raise LlmServiceError("non-retryable OpenAI API error") from e
 
         data = parse_json_safely(response.choices[0].message.content)
@@ -133,10 +141,12 @@ def extract_metadata(client: OpenAI, image_path: Path) -> dict:
             return data
 
         last_error = LlmServiceError("json_parse_error")
-        logger.warning("OpenAI response JSON invalid (attempt %d/%d)", attempt + 1, settings.OPENAI_MAX_RETRIES + 1)
+        logger.warning(
+            "item %s: OpenAI response JSON invalid (attempt %d/%d)", item_id, attempt + 1, settings.OPENAI_MAX_RETRIES + 1
+        )
         if not is_last_attempt:
             time.sleep(delay)
             delay *= 2
 
-    logger.error("metadata extraction failed after retries")
+    logger.error("item %s: metadata extraction failed after retries", item_id)
     raise LlmServiceError("metadata extraction failed after retries") from last_error
