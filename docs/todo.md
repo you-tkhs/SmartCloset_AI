@@ -768,8 +768,8 @@ chore(backend): プロジェクト雛形を作成
 - **検証コマンド**: README記載のコマンドを順に実行
 - **想定される正常結果**: 起動成功
 - **推奨コミットメッセージ**: `docs(readme): add setup and run instructions`
-- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [ ] / push済み [ ]
-- **commit hash**: ______
+- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [x] / push済み [ ]
+- **commit hash**: `7d5b713`
 - **備考**: 既存READMEの「動かし方(現時点: AIパイプライン)」節を「Webアプリの動かし方」+「AIパイプラインNotebook(PoC・単体)」の2節に再構成し、Webアプリ(FastAPI + Next.js)の起動手順を追記(必要なもの・backend起動・backendテスト・frontend起動・frontend型チェック/ビルド、design.md・todo.mdへの参照)。ロードマップのPhase 0〜4チェックボックスも実態(mainへmerge済み)に合わせて更新。検証: backendは既存`.env`・モデル重みで`pytest -m "not yolo" -q`が129 passed(T5-2の手動確認時にuvicorn起動・curlアップロードも実施済み)。frontendは`npx tsc --noEmit`・`npm run build`が成功(既存node_modules・.env.localを使用。真の空環境でのclone検証は未実施)。
 
 ## T5-4: 手動E2Eチェックリスト消化
