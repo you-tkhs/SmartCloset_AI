@@ -818,9 +818,9 @@ chore(backend): プロジェクト雛形を作成
 - **想定される正常結果**: `model_loaded:true`
 - **想定される異常結果**: モデル未マウント時に起動失敗する(正しい挙動)
 - **推奨コミットメッセージ**: `feat(deploy): add backend dockerfile with cpu torch`
-- **チェック**: 実装済み [ ] / テスト済み [ ] / commit済み [ ] / push済み [ ]
+- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [ ] / push済み [ ]
 - **commit hash**: ______
-- **備考**: ARM64ビルドはVM上で行う(ローカルがx86の場合はローカル検証はx86で可)
+- **備考**: ARM64ビルドはVM上で行う(ローカルがx86の場合はローカル検証はx86で可)。ultralyticsが依存する`opencv-python`(GUI版)が`opencv-python-headless`を上書きし`libxcb.so.1`欠落で起動失敗する事象が発生したため、requirements適用後に`pip install --force-reinstall --no-deps opencv-python-headless`でheadless版を再度上書きする一手間を追加。x86ローカルでビルド・起動・`/api/health`(`model_loaded:true`)確認済み、モデル未マウント時の起動失敗も確認済み
 
 ## T6-2: frontend Dockerfile
 
