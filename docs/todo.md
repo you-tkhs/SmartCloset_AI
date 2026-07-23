@@ -777,19 +777,19 @@ chore(backend): プロジェクト雛形を作成
 - **目的**: design.md 14.3節の1〜7を実施
 - **前提条件**: T5-1〜T5-3
 - **実装内容**:
-  - [ ] 1. アップロード→処理中→完了→クローゼット表示
-  - [ ] 2. 衣服なし写真→no_maskメッセージ
-  - [ ] 3. category修正→反映・is_user_corrected
-  - [ ] 4. 削除→一覧・storageから消える
-  - [ ] 5. コーデ提案→提案文+ハイライト
-  - [ ] 6. 通信切断→再送→二重登録なし
-  - [ ] 7. アップロード直後にbackend再起動→failed(処理中断)表示(PROCESSING_STALE_MINUTESを一時的に短縮して確認してよい。確認後に戻す)
+  - [x] 1. アップロード→処理中→完了→クローゼット表示
+  - [x] 2. 衣服なし写真→no_maskメッセージ
+  - [x] 3. category修正→反映・is_user_corrected
+  - [x] 4. 削除→一覧・storageから消える
+  - [x] 5. コーデ提案→提案文+ハイライト
+  - [x] 6. 通信切断→再送→二重登録なし
+  - [x] 7. アップロード直後にbackend再起動→failed(処理中断)表示(PROCESSING_STALE_MINUTESを一時的に短縮して確認してよい。確認後に戻す)
 - **完了条件**: 7項目すべてチェック。発見した不具合は修正して再確認
 - **検証コマンド**: (手動)
 - **推奨コミットメッセージ**: (修正が出た場合)`fix(...): ...`
-- **チェック**: 実装済み [ ] / テスト済み [ ] / commit済み [ ] / push済み [ ]
-- **commit hash**: ______
-- **備考**: ______
+- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [ ] / push済み [ ]
+- **commit hash**: ______(コード変更なしのため対象commitなし)
+- **備考**: 実backend(実YOLO・実OpenAI・実OpenWeatherMap)+実frontendをローカルで起動し、Playwright(headless Chromium)でブラウザ操作を自動運転して7項目を検証。スクリーンショットで目視確認済み。項目1: tops.jpgアップロード→処理中→完了→透過画像・6属性表示→クローゼット一覧に反映。項目2: no_clothing.jpgアップロード→「衣服を検出できませんでした」表示。項目3: 詳細画面でcategoryを変更・保存→「保存しました。」表示、API応答でcategory反映・is_user_corrected:true確認。項目4: 別アイテムを削除→一覧から消え、storage/originals・transparentの実ファイルも削除されたことをファイルシステムで確認。項目5: 「今日は大事な会議」で提案リクエスト→実天気(盛岡市)+実LLMによる提案文・理由・推奨アイテムのハイライト(ring)表示を確認。項目6: オフライン状態でアップロード→「通信エラーが発生しました。」+再試行ボタン表示→オンライン復帰後に再試行→アイテム作成に成功。さらに同一Idempotency-Keyで直接再送し、新規レコードを作らず既存item_idを200で返すこと(件数不変)を確認(design.md 7.7節のサーバー側dedupを直接検証)。項目7: DB直挿入でprocessingのまま放置されたアイテムを用意し、PROCESSING_STALE_MINUTES=0で一時的にbackendを再起動→起動時のrecover_stale_processing()でfailed/processing_interrupted化。pending_uploadをlocalStorageへ設定してポーリング再開をシミュレートし、「サーバーの再起動などにより処理が中断されました。」表示とlocalStorageのpending_upload解除を確認。確認後にPROCESSING_STALE_MINUTESを外して(既定値)backendを再起動済み。7項目とも不具合は見つからずコード変更なし。検証用に生成したdata/storageはテスト後に削除しクリーンな状態に戻した(いずれもgitignore対象)。
 
 ## T5-SR: Phase 5 セルフレビューと完了処理
 
