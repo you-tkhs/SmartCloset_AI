@@ -843,16 +843,16 @@ chore(backend): プロジェクト雛形を作成
 - **変更対象ファイル**: `deploy/docker-compose.yml`、`deploy/Caddyfile`、`deploy/.env.example`
 - **実装内容**: 15.5節のcompose(**backend/frontendはportsを公開しない**、restart: unless-stopped、モデルro マウント)。15.3節のCaddyfile(**basic_auth全パス**、request_body 12MB、/api・/imagesをbackendへ、他をfrontendへ)。`.env.example` に CADDY_DOMAIN/CADDY_BASIC_AUTH_USER/CADDY_BASIC_AUTH_HASH のキー名のみ
 - **サブタスク**:
-  - [ ] `docker compose up -d` 後、`caddy` 経由でのみアクセスできる(ホストの8000/3000が閉じている)
-  - [ ] Basic認証なしで401、認証ありで表示
-  - [ ] 12MB超のアップロードがCaddyで拒否される+FastAPI側413も機能(二重防御)
+  - [x] `docker compose up -d` 後、`caddy` 経由でのみアクセスできる(ホストの8000/3000が閉じている)
+  - [x] Basic認証なしで401、認証ありで表示
+  - [x] 12MB超のアップロードがCaddyで拒否される+FastAPI側413も機能(二重防御)
 - **完了条件**: ローカル(またはVM)でcompose一式が起動しE2Eが通る
 - **検証コマンド**: `cd deploy && docker compose up -d --build && curl -k -u user:pass https://localhost/api/health`
 - **想定される正常結果**: healthがok、401/認証OKの切り替え確認
 - **推奨コミットメッセージ**: `feat(deploy): add docker compose with caddy basic auth`
-- **チェック**: 実装済み [ ] / テスト済み [ ] / commit済み [ ] / push済み [ ]
+- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [ ] / push済み [ ]
 - **commit hash**: ______
-- **備考**: 平文パスワードをGit・composeファイルに書かない(ハッシュのみ.envへ)
+- **備考**: 平文パスワードをGit・composeファイルに書かない(ハッシュのみ.envへ)。x86ローカルで`CADDY_DOMAIN=localhost`(Caddyのinternal CAによる自動自己署名HTTPS)を使い検証。認証なし401/認証あり200でhealth `ok`(`model_loaded:true`)確認、ホストの8000/3000はconnection refusedで非公開を確認、13MBアップロードはCaddyで413、11MBアップロード(Caddy通過)はFastAPI側で413(`file_too_large`)を確認、二重防御が機能
 
 ## T6-4: Oracle VM セットアップと本番起動
 

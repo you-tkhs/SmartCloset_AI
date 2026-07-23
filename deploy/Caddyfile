@@ -1,0 +1,17 @@
+{$CADDY_DOMAIN} {
+    basic_auth {
+        {$CADDY_BASIC_AUTH_USER} {$CADDY_BASIC_AUTH_HASH}
+    }
+    request_body {
+        max_size 12MB
+    }
+    handle /api/* {
+        reverse_proxy backend:8000
+    }
+    handle /images/* {
+        reverse_proxy backend:8000
+    }
+    handle {
+        reverse_proxy frontend:3000
+    }
+}

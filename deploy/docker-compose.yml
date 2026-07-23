@@ -1,0 +1,23 @@
+services:
+  caddy:
+    image: caddy:2
+    ports: ["80:80", "443:443"]
+    env_file: .env
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    restart: unless-stopped
+  backend:
+    build: ../backend
+    env_file: ../backend/.env
+    volumes:
+      - ../backend/data:/app/data
+      - ../backend/storage:/app/storage
+      - ../models:/models:ro        # MODEL_PATH=/models/fashionpedia_9class_with_data_augmentation.pt
+    restart: unless-stopped
+    # ports: 記述しない(内部ネットワークのみ)
+  frontend:
+    build: ../frontend
+    restart: unless-stopped
+volumes:
+  caddy_data:
