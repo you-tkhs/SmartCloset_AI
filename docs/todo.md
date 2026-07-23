@@ -850,8 +850,8 @@ chore(backend): プロジェクト雛形を作成
 - **検証コマンド**: `cd deploy && docker compose up -d --build && curl -k -u user:pass https://localhost/api/health`
 - **想定される正常結果**: healthがok、401/認証OKの切り替え確認
 - **推奨コミットメッセージ**: `feat(deploy): add docker compose with caddy basic auth`
-- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [ ] / push済み [ ]
-- **commit hash**: ______
+- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [x] / push済み [ ]
+- **commit hash**: `38085bd`
 - **備考**: 平文パスワードをGit・composeファイルに書かない(ハッシュのみ.envへ)。x86ローカルで`CADDY_DOMAIN=localhost`(Caddyのinternal CAによる自動自己署名HTTPS)を使い検証。認証なし401/認証あり200でhealth `ok`(`model_loaded:true`)確認、ホストの8000/3000はconnection refusedで非公開を確認、13MBアップロードはCaddyで413、11MBアップロード(Caddy通過)はFastAPI側で413(`file_too_large`)を確認、二重防御が機能
 
 ## T6-4: Oracle VM セットアップと本番起動
