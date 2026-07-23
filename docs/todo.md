@@ -832,9 +832,9 @@ chore(backend): プロジェクト雛形を作成
 - **検証コマンド**: `docker build -t smartcloset-frontend frontend/ && docker run --rm -p 3000:3000 smartcloset-frontend` → ブラウザ確認
 - **想定される正常結果**: 画面表示(API未接続でも空状態表示)
 - **推奨コミットメッセージ**: `feat(deploy): add frontend standalone dockerfile`
-- **チェック**: 実装済み [ ] / テスト済み [ ] / commit済み [ ] / push済み [ ]
+- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [ ] / push済み [ ]
 - **commit hash**: ______
-- **備考**: ______
+- **備考**: `next.config.js`ではなく既存の`next.config.ts`に`output: "standalone"`を追加(プロジェクトはTS設定を採用済み)。multi-stage(deps/builder/runner、node:20-slim)。x86ローカルでビルド・起動し`curl localhost:3000/`がHTTP 200・HTML表示を確認済み
 
 ## T6-3: docker-compose と Caddy
 
