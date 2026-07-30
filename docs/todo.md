@@ -854,23 +854,26 @@ chore(backend): プロジェクト雛形を作成
 - **commit hash**: `38085bd`
 - **備考**: 平文パスワードをGit・composeファイルに書かない(ハッシュのみ.envへ)。x86ローカルで`CADDY_DOMAIN=localhost`(Caddyのinternal CAによる自動自己署名HTTPS)を使い検証。認証なし401/認証あり200でhealth `ok`(`model_loaded:true`)確認、ホストの8000/3000はconnection refusedで非公開を確認、13MBアップロードはCaddyで413、11MBアップロード(Caddy通過)はFastAPI側で413(`file_too_large`)を確認、二重防御が機能。T6-4の前提条件(mainにmerge済みであること)を満たすため、T6-SRを待たずphase/6-deployをmainへfast-forward mergeしpush済み(`6b4e416`)
 
-## T6-4: Oracle VM セットアップと本番起動
+## T6-4: Oracle VM セットアップと本番起動(Terraform)
 
 - **目的**: design.md 15.6節の手順を実施
 - **前提条件**: T6-3(mainにmerge済みであること)
-- **変更対象ファイル**: (VM上の作業。リポジトリ変更は原則なし。手順の差異が出たらdesign.md 15.6節を更新)
-- **実装内容**: アカウント作成→A1.Flexインスタンス確保→セキュリティリスト(80/443、SSHは自IP限定)→Docker導入+`systemctl enable docker`→git clone→**モデル重みscp転送**→`backend/.env`・`deploy/.env` 作成→`docker compose up -d --build`→DuckDNS等のDNS設定
+- **変更対象ファイル**: `deploy/terraform/{versions.tf,main.tf,variables.tf,outputs.tf,cloud-init.yaml,terraform.tfvars.example}`、`.gitignore`(terraform state/tfvars除外)
+- **実装内容**: design.md 15.6.1(手動事前準備: OCI APIキー作成・SSH鍵準備)→ 15.6.2のTerraform構成一式を実装(VCN・パブリックサブネット・IGW・ルートテーブル・セキュリティリスト・A1.Flexインスタンス、cloud-initでDocker/Docker Compose自動導入)→ 15.6.3の適用手順で`terraform apply`→ 15.6.4のアプリデプロイ手順(git clone・モデル重みscp・`.env`作成・`docker compose up -d --build`)→ DNS設定
 - **サブタスク**:
+  - [ ] `terraform validate` / `terraform plan` が通る
+  - [ ] `terraform apply` でVCN・サブネット・セキュリティリスト・インスタンスが作成される(Out of Capacity時はOCPU数を減らす/時間を変えてリトライ)
+  - [ ] cloud-init完了後、SSHで`docker --version`・`docker compose version`が通る
   - [ ] VM再起動(`sudo reboot`)後にサービスが自動復旧する
   - [ ] `GET /api/health` が公開URLで `model_loaded:true`
 - **完了条件**: 公開URLでhealth ok
-- **検証コマンド**: `curl -u user:pass https://<domain>/api/health`
+- **検証コマンド**: `cd deploy/terraform && terraform apply` → `terraform output instance_public_ip` → `curl -u user:pass https://<domain>/api/health`
 - **想定される正常結果**: `{"status":"ok",...}`
-- **想定される異常結果**: A1確保失敗→OCPU減・時間帯変更でリトライ(design.md 15.6節)
-- **推奨コミットメッセージ**: (手順差異があれば)`docs(design): update vm setup steps`
+- **想定される異常結果**: A1確保失敗→OCPU減・時間帯変更でリトライ(design.md 15.6.3節)
+- **推奨コミットメッセージ**: `feat(deploy): add terraform for oci network and compute instance`
 - **チェック**: 実装済み [ ] / テスト済み [ ] / commit済み [ ] / push済み [ ]
 - **commit hash**: ______
-- **備考**: APIキー・ハッシュはVM上の.envのみに置く
+- **備考**: APIキー・ハッシュ・OCI認証情報(tenancy/user OCID・fingerprint・秘密鍵パス)はVM上の`.env`・ローカルの`terraform.tfvars`のみに置き、Git管理外とする
 
 ## T6-5: バックアップ・復元スクリプト
 

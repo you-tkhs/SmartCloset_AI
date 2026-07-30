@@ -1322,6 +1322,7 @@ FastAPIの `HTTPException` はグローバル例外ハンドラでこの形式�
 - **外部公開はCaddyのみ**(80/443)。`frontend:3000` / `backend:8000` はDocker内部ネットワーク限定とし、ホストへのポートpublishをしない
 - SQLite(`backend/data/`)・画像(`backend/storage/`)・モデル重み(`models/`)はホストのディスクにボリュームマウントして永続化
 - 全サービス `restart: unless-stopped` + `systemctl enable docker` により **VM再起動後に自動復旧**
+- **ネットワーク(VCN/サブネット/セキュリティリスト)とコンピュートインスタンスはTerraformでコード管理**(`deploy/terraform/`)。OCIコンソールでの手動クリック操作による設定ミス・再現性の欠如を避ける(15.6節)
 
 ## 15.2 Dockerfile 方針
 
@@ -1399,15 +1400,38 @@ volumes:
   caddy_data:
 ```
 
-## 15.6 VMセットアップ手順(概要)
+## 15.6 VMセットアップ手順
 
-1. Oracle Cloudアカウント作成(クレカ登録必要・Always Free枠内は課金なし)。A1.Flexインスタンス作成(混雑で失敗する場合はOCPU数を減らす/時間を変えてリトライ)
-2. OCIセキュリティリストで **80/443のみ**開放(22はSSH用に自IP限定推奨)。VM内のfirewall(iptables/ufw)も同様
-3. Docker / Docker Compose インストール、`systemctl enable docker`
-4. `git clone`(HTTPS)+ **モデル重みをscp転送**(`models/fashionpedia_9class_with_data_augmentation.pt`。Git管理外のため)
-5. `backend/.env`・`deploy/.env` を作成(APIキー・Basic認証ハッシュ)
-6. `cd deploy && docker compose up -d --build`
-7. `GET /api/health` で `model_loaded: true` を確認 → スマホからE2E確認(14.3節)
+Oracle Cloudアカウント作成(クレカ登録必要・Always Free枠内は課金なし)のみ手動で行い、**それ以降のインフラ(VCN・パブリックサブネット・インターネットゲートウェイ・ルートテーブル・セキュリティリスト・A1.Flexコンピュートインスタンス)はTerraformで作成する**。
+
+### 15.6.1 事前準備(手動・アカウントにつき一度だけ)
+
+1. Oracle Cloudアカウント作成
+2. OCIコンソール右上のプロフィールアイコン → **My Profile → API keys → Add API key** で「Generate API Key Pair」を選び、公開鍵をアップロード。表示される秘密鍵をダウンロードしてローカルの安全な場所(例: `~/.oci/oci_api_key.pem`。**Git管理外**)に保存する(コンピュートインスタンスへのSSHログイン用鍵とは別物)
+3. 同画面に表示される「Configuration file preview」から `tenancy` OCID・`user` OCID・`fingerprint`・`region` を控える
+4. VMへのSSHログイン用鍵(`ssh-keygen -t ed25519`等で新規作成、または既存の公開鍵)を用意し、公開鍵のパスを控える
+
+### 15.6.2 Terraform構成(`deploy/terraform/`)
+
+- **管理対象**: VCN、パブリックサブネット、インターネットゲートウェイ、ルートテーブル、セキュリティリスト(ingress: 22は`var.ssh_allowed_cidr`限定・80/443は全公開、egress: 全許可)、`VM.Standard.A1.Flex`コンピュートインスタンス(Ubuntu、cloud-initで`docker.io`・`docker-compose-v2`を自動インストールし`docker`グループに追加)
+- **ファイル構成**: `versions.tf`(OCI providerバージョン固定)、`main.tf`(プロバイダ・各リソース定義)、`variables.tf`、`outputs.tf`(`instance_public_ip`)、`cloud-init.yaml`、`terraform.tfvars.example`(キー名のみ)
+- **state管理**: ローカルstate(`terraform.tfstate`)。シングルユーザー運用のためリモートバックエンドは導入しない。`terraform.tfvars`・`terraform.tfstate*`・`.terraform/`は**Git管理外**(OCIDそのものは秘密情報ではないが、実運用値・stateをリポジトリで追跡しない方針に統一する)
+
+### 15.6.3 適用手順
+
+1. `cd deploy/terraform && cp terraform.tfvars.example terraform.tfvars` → 15.6.1で控えた値・SSH公開鍵パス・ホームリージョン(`ap-osaka-1`)を記入
+2. `terraform init`
+3. `terraform plan` でVCN・サブネット・セキュリティリスト・インスタンスの作成計画を確認
+4. `terraform apply`(**A1.Flexの確保に失敗する場合**=Out of Capacity: `instance_ocpus`/`instance_memory_gbs`変数を減らす、または時間を変えて再度`terraform apply`。作成済みのVCN等はそのまま再利用される)
+5. `terraform output instance_public_ip` でパブリックIPを取得 → `ssh -i <SSH秘密鍵> ubuntu@<IP>` で疎通確認(cloud-init完了後は`docker --version`・`docker compose version`が通る。完了まで数分かかる場合がある)
+
+### 15.6.4 アプリのデプロイ(Terraform適用後、VM上で実施)
+
+1. `git clone`(HTTPS)+ **モデル重みをscp転送**(`models/fashionpedia_9class_with_data_augmentation.pt`。Git管理外のため)
+2. `backend/.env`・`deploy/.env` を作成(APIキー・Basic認証ハッシュ)
+3. `cd deploy && docker compose up -d --build`
+4. `GET /api/health` で `model_loaded: true` を確認 → スマホからE2E確認(14.3節)
+5. DNS(DuckDNS等)で`CADDY_DOMAIN`のサブドメインを`terraform output instance_public_ip`のIPへ向ける
 
 ## 15.7 コスト内訳
 
