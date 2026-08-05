@@ -861,7 +861,7 @@ chore(backend): プロジェクト雛形を作成
 - **変更対象ファイル**: `deploy/terraform/{versions.tf,main.tf,variables.tf,outputs.tf,cloud-init.yaml,terraform.tfvars.example}`、`.gitignore`(terraform state/tfvars除外)
 - **実装内容**: design.md 15.6.1(手動事前準備: OCI APIキー作成・SSH鍵準備)→ 15.6.2のTerraform構成一式を実装(VCN・パブリックサブネット・IGW・ルートテーブル・セキュリティリスト・A1.Flexインスタンス、cloud-initでDocker/Docker Compose自動導入)→ 15.6.3の適用手順で`terraform apply`→ 15.6.4のアプリデプロイ手順(git clone・モデル重みscp・`.env`作成・`docker compose up -d --build`)→ DNS設定
 - **サブタスク**:
-  - [ ] `terraform validate` / `terraform plan` が通る
+  - [x] `terraform validate` / `terraform plan` が通る
   - [ ] `terraform apply` でVCN・サブネット・セキュリティリスト・インスタンスが作成される(Out of Capacity時はOCPU数を減らす/時間を変えてリトライ)
   - [ ] cloud-init完了後、SSHで`docker --version`・`docker compose version`が通る
   - [ ] VM再起動(`sudo reboot`)後にサービスが自動復旧する
@@ -871,6 +871,9 @@ chore(backend): プロジェクト雛形を作成
 - **想定される正常結果**: `{"status":"ok",...}`
 - **想定される異常結果**: A1確保失敗→OCPU減・時間帯変更でリトライ(design.md 15.6.3節)
 - **推奨コミットメッセージ**: `feat(deploy): add terraform for oci network and compute instance`
+- **チェック**: 実装済み [x] / テスト済み [ ] / commit済み [ ] / push済み [ ]
+- **commit hash**: ______
+- **備考**: `ap-osaka-1`リージョンでVCN・IGW・ルートテーブル・セキュリティリスト・パブリックサブネットの作成には成功(`terraform state list`で確認可能)。**A1.Flexインスタンスの作成のみ「Out of host capacity」で継続的に失敗**。4 OCPU/24GBで12回(5分間隔)、2 OCPU/12GBで約120回(10分/30分間隔、延べ20時間超)リトライしたが全滅。ネットワークリソースは作成済みのままVM上で保持し、後日ユーザーが手動で`terraform apply`を再試行する方針で一旦保留。認証エラー(401)は APIキー作成直後の伝播遅延が原因と判明(数十秒待てば解消)。`terraform.tfvars`・秘密鍵は`~/.oci/`・`~/.ssh/`に配置しGit管理外
 - **チェック**: 実装済み [ ] / テスト済み [ ] / commit済み [ ] / push済み [ ]
 - **commit hash**: ______
 - **備考**: APIキー・ハッシュ・OCI認証情報(tenancy/user OCID・fingerprint・秘密鍵パス)はVM上の`.env`・ローカルの`terraform.tfvars`のみに置き、Git管理外とする

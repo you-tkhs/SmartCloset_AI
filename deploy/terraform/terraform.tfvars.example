@@ -1,0 +1,8 @@
+tenancy_ocid         = ""
+user_ocid            = ""
+fingerprint          = ""
+private_key_path     = ""
+region               = "ap-osaka-1"
+compartment_ocid     = ""
+ssh_public_key_path  = ""
+ssh_allowed_cidr     = ""
