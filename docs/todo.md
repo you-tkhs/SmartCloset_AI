@@ -871,12 +871,9 @@ chore(backend): プロジェクト雛形を作成
 - **想定される正常結果**: `{"status":"ok",...}`
 - **想定される異常結果**: A1確保失敗→OCPU減・時間帯変更でリトライ(design.md 15.6.3節)
 - **推奨コミットメッセージ**: `feat(deploy): add terraform for oci network and compute instance`
-- **チェック**: 実装済み [x] / テスト済み [ ] / commit済み [ ] / push済み [ ]
-- **commit hash**: ______
-- **備考**: `ap-osaka-1`リージョンでVCN・IGW・ルートテーブル・セキュリティリスト・パブリックサブネットの作成には成功(`terraform state list`で確認可能)。**A1.Flexインスタンスの作成のみ「Out of host capacity」で継続的に失敗**。4 OCPU/24GBで12回(5分間隔)、2 OCPU/12GBで約120回(10分/30分間隔、延べ20時間超)リトライしたが全滅。ネットワークリソースは作成済みのままVM上で保持し、後日ユーザーが手動で`terraform apply`を再試行する方針で一旦保留。認証エラー(401)は APIキー作成直後の伝播遅延が原因と判明(数十秒待てば解消)。`terraform.tfvars`・秘密鍵は`~/.oci/`・`~/.ssh/`に配置しGit管理外
-- **チェック**: 実装済み [ ] / テスト済み [ ] / commit済み [ ] / push済み [ ]
-- **commit hash**: ______
-- **備考**: APIキー・ハッシュ・OCI認証情報(tenancy/user OCID・fingerprint・秘密鍵パス)はVM上の`.env`・ローカルの`terraform.tfvars`のみに置き、Git管理外とする
+- **チェック**: 実装済み [x] / テスト済み [ ] / commit済み [x] / push済み [ ]
+- **commit hash**: `3e31033`
+- **備考**: `ap-osaka-1`リージョンでVCN・IGW・ルートテーブル・セキュリティリスト・パブリックサブネットの作成には成功(`terraform state list`で確認可能)。**A1.Flexインスタンスの作成のみ「Out of host capacity」で継続的に失敗**。4 OCPU/24GBで12回(5分間隔)、2 OCPU/12GBで約120回(10分/30分間隔、延べ20時間超)リトライしたが全滅。ネットワークリソースは作成済みのままVM上で保持し、後日ユーザーが手動で`terraform apply`を再試行する方針で一旦保留。認証エラー(401)は APIキー作成直後の伝播遅延が原因と判明(数十秒待てば解消)。APIキー・ハッシュ・OCI認証情報(tenancy/user OCID・fingerprint・秘密鍵パス)は`~/.oci/`・`~/.ssh/`・ローカルの`terraform.tfvars`のみに置き、Git管理外とする
 
 ## T6-5: バックアップ・復元スクリプト
 
