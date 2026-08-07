@@ -5,6 +5,10 @@
 - 開発ステータス: **稼働中**(Oracle Cloud上で本番稼働、Phase 0〜6実装完了。[ロードマップ](#ロードマップ))
 - 技術スタック: YOLOv8-seg(ファインチューニング) / OpenAI GPT-5.4-nano / FastAPI / Next.js / SQLite / Docker + Caddy + Terraform(Oracle Cloud ¥0運用)
 
+## 背景
+
+衣服管理アプリは「登録が面倒」で使われなくなる。1着ずつブランド・色・カテゴリを手入力し、背景まで綺麗に撮らなければならないからだ。本プロジェクトは**登録コストをAIで限りなくゼロに近づける**ことで、クローゼットのデジタル化と、毎朝の「何を着るか」という決断疲れの解消を狙う。
+
 ## できること
 
 1. **衣服の自動登録** — 服の写真をアップロードすると、ファインチューニング済みYOLOv8-segが背景を切り抜き、GPT-5.4-nanoがカテゴリ・色(2種)・柄・素材・シルエットを抽出して自動登録
@@ -18,10 +22,6 @@
 | Original | Mask | Transparent | Annotated |
 |---|---|---|---|
 | ![original](docs/images/demo_original.jpeg) | ![mask](docs/images/demo_mask.png) | ![transparent](docs/images/demo_transparent.png) | ![annotated](docs/images/demo_annotated.png) |
-
-## 背景
-
-衣服管理アプリは「登録が面倒」で使われなくなる。1着ずつブランド・色・カテゴリを手入力し、背景まで綺麗に撮らなければならないからだ。本プロジェクトは**登録コストをAIで限りなくゼロに近づける**ことで、クローゼットのデジタル化と、毎朝の「何を着るか」という決断疲れの解消を狙う。
 
 ## 技術ハイライト
 
@@ -84,10 +84,10 @@ Caddy(:443) ── 外部公開はここのみ・自動HTTPS
 backend/          FastAPIアプリ本体(API・DB・AIパイプライン)
 frontend/         Next.jsアプリ本体(クローゼットUI・コーデ提案UI)
 deploy/           docker-compose.yml・Caddyfile・deploy/terraform/(Oracle Cloud IaC)
-docs/             design.md・todo.md・評価資料・docs/images/(デモ画像)
+docs/             design.md・todo.md・評価資料・docs/images/(デモ画像)など
 scripts/          backup.sh・restore.sh(VM上のバックアップ・復元)
-ai_prototype/     Webアプリを介さないAIパイプラインPoC(Notebook)
-training/         YOLOv8-segの学習用Notebook
+ai_prototype/     Webアプリを介さないAIパイプライン本体・PoCと開発過程の記録(Notebook)
+training/         YOLOv8n-segの学習用Notebook・前処理
 models/           学習済みモデル重み(Git管理外・別途用意が必要)
 ```
 
