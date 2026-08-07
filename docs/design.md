@@ -1134,7 +1134,7 @@ def get_current_weather(city: str) -> WeatherInfo | None:
 
 共通モジュール:
 
-- `lib/api.ts`: fetchラッパー。ベースURLは `NEXT_PUBLIC_API_BASE_URL`(開発: `http://localhost:8000`、本番: 空文字=同一オリジン)。エラー時は `ErrorResponse` をパースして型付きで返す
+- `lib/api.ts`: fetchラッパー。ベースURLはクライアント側(ブラウザ)とサーバー側(Next.js Server Component/Route Handler)で別々に決定する。**サーバー側の`fetch`は相対URLを解決できない**ため、`typeof window === "undefined"`でサーバー実行を判定し、サーバー側は`INTERNAL_API_BASE_URL`(Docker内部ネットワーク。本番: `http://backend:8000`、`NEXT_PUBLIC_`を付けずクライアントバンドルに含めない)、クライアント側は`NEXT_PUBLIC_API_BASE_URL`(開発: `http://localhost:8000`、本番: 空文字=同一オリジン、Caddy経由)を使う。エラー時は `ErrorResponse` をパースして型付きで返す
 - `lib/types.ts`: `ItemResponse` / `ItemListResponse` / `SuggestResponse` / `WeatherInfo` / `ErrorResponse` 等をバックエンドスキーマ(6章)と1:1で定義
 
 ## 12.3 アップロード状態機械(9状態)
@@ -1337,7 +1337,8 @@ FastAPIの `HTTPException` はグローバル例外ハンドラでこの形式�
 ### frontend/Dockerfile
 
 - `next.config.js` で `output: "standalone"` を設定し、multi-stageビルド(`node:20-slim`)で `node server.js` を起動
-- `NEXT_PUBLIC_API_BASE_URL` は空文字(同一オリジン。Caddyが `/api` と `/images` をbackendへルーティング)
+- `NEXT_PUBLIC_API_BASE_URL` は空文字(同一オリジン。Caddyが `/api` と `/images` をbackendへルーティング)。ビルド時にDockerfileで固定
+- `INTERNAL_API_BASE_URL`(`http://backend:8000`)は実行時にdocker-compose経由で注入(12.2節)。Server ComponentのSSR fetchはCaddyを経由しないため必須
 
 ## 15.3 Caddy 設定
 
@@ -1395,10 +1396,14 @@ services:
     # ports: 記述しない(内部ネットワークのみ)
   frontend:
     build: ../frontend
+    environment:
+      INTERNAL_API_BASE_URL: http://backend:8000
     restart: unless-stopped
 volumes:
   caddy_data:
 ```
+
+**注意(bcryptハッシュと`.env`)**: `CADDY_BASIC_AUTH_HASH`はbcryptハッシュ(`$2a$14$...`)で`$`を含むため、docker composeの`.env`自動読み込みが`$X`を変数参照として展開しようとし値が壊れる。`deploy/.env`では`$`を`$$`にエスケープして記述する(`caddy hash-password`の出力をそのまま貼らない)
 
 ## 15.6 VMセットアップ手順
 
@@ -1414,6 +1419,7 @@ Oracle Cloudアカウント作成(クレカ登録必要・Always Free枠内は�
 ### 15.6.2 Terraform構成(`deploy/terraform/`)
 
 - **管理対象**: VCN、パブリックサブネット、インターネットゲートウェイ、ルートテーブル、セキュリティリスト(ingress: 22は`var.ssh_allowed_cidr`限定・80/443は全公開、egress: 全許可)、`VM.Standard.A1.Flex`コンピュートインスタンス(Ubuntu、cloud-initで`docker.io`・`docker-compose-v2`を自動インストールし`docker`グループに追加)
+- **VM内ファイアウォール(iptables)の注意**: OracleのUbuntuイメージは`netfilter-persistent`が起動時に`/etc/iptables/rules.v4`を読み込み、**デフォルトでSSH(22)以外の新規接続を`REJECT`する**(OCIセキュリティリストで80/443を許可していてもVM内で二重に塞がれる)。cloud-initの`runcmd`で80/443のACCEPTルールを追加し`netfilter-persistent save`で永続化する
 - **ファイル構成**: `versions.tf`(OCI providerバージョン固定)、`main.tf`(プロバイダ・各リソース定義)、`variables.tf`、`outputs.tf`(`instance_public_ip`)、`cloud-init.yaml`、`terraform.tfvars.example`(キー名のみ)
 - **state管理**: ローカルstate(`terraform.tfstate`)。シングルユーザー運用のためリモートバックエンドは導入しない。`terraform.tfvars`・`terraform.tfstate*`・`.terraform/`は**Git管理外**(OCIDそのものは秘密情報ではないが、実運用値・stateをリポジトリで追跡しない方針に統一する)
 
