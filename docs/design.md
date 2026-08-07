@@ -1158,7 +1158,7 @@ def resolve_weather(request_text: str, explicit_city: str | None) -> WeatherInfo
 | クローゼット一覧 | `/` | アイテムグリッド(透過PNG)、フィルタ(category/color/pattern/material)、ページング、failed/processingバッジ、詳細への導線 |
 | 衣服登録 | `/upload` | 画像選択(ファイル選択+ドラッグ&ドロップ)、プレビュー、アップロード、処理中ポーリング、結果表示 |
 | アイテム詳細 | `/items/[id]` | 原画像/透過画像の切替表示、メタデータ表示・編集(PATCH)、削除 |
-| コーデ提案 | `/suggest` | 要望入力、提案結果を吹き出しチャット風に表示(天気は提案文に自然に統合)+推奨アイテムカード |
+| コーデ提案 | `/suggest` | 要望入力、送信ごとに自分の発言+提案結果を吹き出しチャット風に積み上げ表示(LINE風の会話履歴。天気は提案文に自然に統合)+推奨アイテムカード。履歴はクライアント側の画面状態のみ(ページ再読み込みで消える。サーバー側に会話セッションは持たない) |
 
 ## 12.2 コンポーネント一覧
 
@@ -1172,8 +1172,8 @@ def resolve_weather(request_text: str, explicit_city: str | None) -> WeatherInfo
 | `ItemGrid` | / | ItemCardの一覧+ページング |
 | `FilterBar` | / | category/color/pattern/materialフィルタ |
 | `MetadataEditForm` | /items/[id] | 6属性の編集フォーム(enumはセレクトボックス)→PATCH |
-| `SuggestForm` | /suggest | 要望テキスト入力+送信(送信中は無効化) |
-| `SuggestionResult` | /suggest | suggestion_text / styling_reasonを吹き出しチャット風(アバターアイコン+吹き出し)に表示。天気が使えなかった場合のみ「※天気情報は考慮されていません」を吹き出し内に表示。推奨アイテムは吹き出し下にグリッド表示 |
+| `SuggestForm` | /suggest | 要望テキスト入力+送信(送信中は無効化)。送信直後に入力欄を自動でクリアし、連続してメッセージを送れるようにする |
+| `SuggestionResult` | /suggest | 1回分の提案結果をsuggestion_text / styling_reasonを吹き出しチャット風(アバターアイコン+吹き出し)に表示。天気が使えなかった場合のみ「※天気情報は考慮されていません」を吹き出し内に表示。推奨アイテムは吹き出し下にグリッド表示。`/suggest`ページ側はこれをユーザー自身の発言吹き出しと組み合わせ、送信ごとに配列へ積み上げて会話履歴として表示する(状態は`page.tsx`のReact stateのみで保持。DB永続化なし) |
 
 共通モジュール:
 
