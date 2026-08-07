@@ -132,6 +132,7 @@ export interface WeatherInfo {
   description: string;
   humidity: number;
   wind_speed: number;
+  forecast_date: string | null;
 }
 
 // 6.8節: POST /api/suggest の応答

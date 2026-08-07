@@ -15,6 +15,7 @@ export function SuggestForm({ onSubmit, submitting }: SuggestFormProps) {
     const trimmed = requestText.trim();
     if (!trimmed) return;
     onSubmit(trimmed);
+    setRequestText("");
   }
 
   return (

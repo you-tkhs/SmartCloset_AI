@@ -4,14 +4,13 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from app.config import settings
 from app.database import get_db
 from app.models.clothing_item import ClothingItem
 from app.routers.items import to_item_response
 from app.schemas.suggest import SuggestRequest, SuggestResponse
 from app.services.llm_service import LlmServiceError
 from app.services.suggest_service import create_suggestion
-from app.services.weather_service import get_current_weather
+from app.services.weather_resolution_service import resolve_weather
 
 router = APIRouter()
 
@@ -39,7 +38,7 @@ def post_suggest(payload: SuggestRequest, db: Session = Depends(get_db)):
 
     weather = None
     if payload.use_weather:
-        weather = get_current_weather(payload.city or settings.DEFAULT_CITY)
+        weather = resolve_weather(payload.request_text, payload.city)
 
     try:
         result = create_suggestion(db, payload.request_text, weather)

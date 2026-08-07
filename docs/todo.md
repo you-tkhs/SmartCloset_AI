@@ -929,6 +929,20 @@ chore(backend): プロジェクト雛形を作成
 - **commit hash**: `e9061d5`
 - **備考**: アプリ画面のスクリーンショットは、別途計画中の天気・提案機能の再設計(コーデ提案画面のUIが変わる見込み)の後にまとめて撮影する方針のため今回は見送り。README内のTODOコメントはそのまま残す。コーデ提案の「おすすめアイテム」表示はユーザー懸念(適当な画像では?)を調査した結果バグではないことを確認済み(backend側でLLM推奨IDをDB照合済みのもののみ返す設計)。天気・提案機能の再設計は別ブランチ・別タスクとして今後計画する。**mainへpush・merge済みだが本番VMへのデプロイ(再ビルド・再起動)は未実施**。天気・提案機能の改修完了後にまとめて反映する方針
 
+## T8-1: コーデ提案の場所・日付対応+吹き出しチャットUI化
+
+- **目的**: T7-1備考・メモリ`project_weather_suggest_redesign`で先送りしていた天気・提案機能の再設計。request_textから場所・日付を抽出し、常に固定デフォルト都市(Morioka)の現在天気しか使えなかった問題を解消。あわせて提案結果をLINE風の会話履歴チャットUIに変更
+- **前提条件**: T7-1完了
+- **変更対象ファイル**: `backend/app/prompts/location_prompt.py`(新規)、`backend/app/services/{location_extraction_service,weather_resolution_service}.py`(新規)、`backend/app/services/weather_service.py`、`backend/app/schemas/weather.py`、`backend/app/routers/suggest.py`、`backend/app/prompts/suggest_prompt.py`、`backend/tests/test_suggest.py`、`frontend/src/app/suggest/page.tsx`、`frontend/src/components/{SuggestForm,SuggestionResult}.tsx`、`frontend/src/components/WeatherBadge.tsx`(削除)、`frontend/src/lib/types.ts`、`README.md`、`docs/design.md`(6.8/6.9/11.1/11.3/11.4/12.1/12.2/付録B.2/B.3)
+- **実装内容**: ①request_textから場所・日付を抽出する軽量LLM呼び出し(`location_extraction_service`。リトライなし・fail-soft) ②現在天気/予報(5日先まで)の呼び分け(`weather_resolution_service.resolve_weather`。`create_suggestion`のシグネチャは不変) ③予報API呼び出し(`weather_service.get_forecast_weather`。`WeatherInfo.forecast_date`追加) ④提案文に天気を自然に織り込むプロンプト調整 ⑤`WeatherBadge`廃止、`SuggestionResult`を吹き出しチャット風に再デザイン ⑥`/suggest`ページをLINE風の会話履歴スタック形式に変更(送信ごとに自分の発言+提案結果が積み上がる。入力欄は送信後に自動クリア。履歴はクライアント側state のみ、DB永続化なし)
+- **完了条件**: バックエンド・フロントエンドのテストが全てパスし、実機で「明日沖縄で会議」のような都道府県名+未来日付を含むテキストから該当地域・日付の天気が使われることを確認
+- **検証コマンド**: `cd backend && python -m pytest -m "not yolo" -q` / `cd frontend && npx tsc --noEmit && npm run build`
+- **想定される正常結果**: backend 147 passed(既存全件+新規)、frontend型エラーなし・ビルド成功
+- **推奨コミットメッセージ**: `feat(suggest): 場所・日付を考慮した天気解決と吹き出しチャットUIを追加`
+- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [ ] / push済み [ ]
+- **commit hash**: (commit後に追記)
+- **備考**: 実装直後の実機検証で、「沖縄」「北海道」等の**都道府県名・地方名のみ**の地名指定時に`gpt-5.4-nano`がcityをnullにしてしまう不具合を発見(市区町村名は問題なし)。プロンプトの「地名が明示されていなければnull」という制約が過度に厳格に解釈されていたため、都道府県名・地方名も対象に含む旨を明示する指示文に修正し解消(実機で複数回再現・修正確認済み)。またローカル動作確認中に「1回分の結果表示のみ」という当初方針(T7-1計画時点)が実際には不便との指摘を受け、送信ごとに履歴が積み上がるLINE風チャットUIに設計変更(design.mdも合わせて更新)。**本番VMへのデプロイは未実施**(T7-1分と合わせてまとめて反映する方針)
+
 ---
 
 # 完成条件(全体)

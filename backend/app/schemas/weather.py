@@ -8,3 +8,4 @@ class WeatherInfo(BaseModel):
     description: str
     humidity: int
     wind_speed: float
+    forecast_date: str | None = None

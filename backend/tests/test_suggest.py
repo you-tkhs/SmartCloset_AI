@@ -1,7 +1,9 @@
-"""design.md 11.1〜11.3節・6.9節: weather_service/GET /api/weather(T3-1)、suggest_service(T3-2)。"""
+"""design.md 11.1〜11.4節・6.9節・付録B.3: weather_service/location_extraction_service/
+weather_resolution_service/GET /api/weather(T3-1)、suggest_service(T3-2)。"""
 
 import json
 import uuid
+from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock
 
 import httpx
@@ -16,9 +18,12 @@ from app.models.clothing_item import ClothingItem
 from app.models.coordinate_log import CoordinateLog
 from app.schemas.suggest import SuggestRequest
 from app.schemas.weather import WeatherInfo
-from app.services import weather_service
+from app.services import location_extraction_service, weather_service
+from app.services import weather_resolution_service as weather_resolution_module
 from app.services.llm_service import LlmServiceError
+from app.services.location_extraction_service import LocationDateExtraction
 from app.services.suggest_service import create_suggestion
+from app.services.weather_resolution_service import resolve_weather
 
 
 class _FakeResponse:
@@ -431,3 +436,293 @@ def test_suggest_endpoint_blank_request_text_is_422(client):
 
     assert resp.status_code == 422
     assert resp.json()["error_code"] == "validation_error"
+
+
+# --- 11.3.1節: weather_service.get_forecast_weather ---
+
+
+def _utc_ts_for_local(year, month, day, hour, tz_offset_hours=9):
+    """JST(既定+9h)のy/m/d/h時点に対応するUTC unixtimeを返す(テスト用ヘルパー)。"""
+    local_as_utc = datetime(year, month, day, hour, tzinfo=timezone.utc)
+    return int((local_as_utc - timedelta(hours=tz_offset_hours)).timestamp())
+
+
+class _FixedNowDatetime(datetime):
+    _fixed_utc_now = datetime(2026, 8, 7, 3, 0, tzinfo=timezone.utc)
+
+    @classmethod
+    def now(cls, tz=None):
+        return cls._fixed_utc_now
+
+
+_FORECAST_PAYLOAD = {
+    "city": {"name": "Naha", "timezone": 32400},
+    "list": [
+        {
+            "dt": _utc_ts_for_local(2026, 8, 8, 9),
+            "main": {"temp": 27.0, "feels_like": 29.0, "humidity": 70},
+            "weather": [{"description": "曇り"}],
+            "wind": {"speed": 4.0},
+        },
+        {
+            "dt": _utc_ts_for_local(2026, 8, 8, 12),
+            "main": {"temp": 29.0, "feels_like": 31.0, "humidity": 65},
+            "weather": [{"description": "晴れ"}],
+            "wind": {"speed": 3.5},
+        },
+        {
+            "dt": _utc_ts_for_local(2026, 8, 8, 15),
+            "main": {"temp": 30.0, "feels_like": 33.0, "humidity": 60},
+            "weather": [{"description": "晴れ"}],
+            "wind": {"speed": 3.0},
+        },
+    ],
+}
+
+
+def test_weather_get_forecast_weather_picks_entry_closest_to_noon(monkeypatch):
+    monkeypatch.setattr(settings, "OPENWEATHER_API_KEY", "dummy-key")
+    monkeypatch.setattr(httpx, "get", lambda *a, **k: _FakeResponse(200, _FORECAST_PAYLOAD))
+    monkeypatch.setattr(weather_service, "datetime", _FixedNowDatetime)
+
+    result = weather_service.get_forecast_weather("Naha,JP", 1)
+
+    assert result is not None
+    assert result.city == "Naha"
+    assert result.temp == 29.0
+    assert result.forecast_date == "2026-08-08"
+
+
+def test_weather_get_forecast_weather_no_matching_date_returns_none(monkeypatch):
+    monkeypatch.setattr(settings, "OPENWEATHER_API_KEY", "dummy-key")
+    monkeypatch.setattr(
+        httpx, "get", lambda *a, **k: _FakeResponse(200, {"city": {"name": "Naha", "timezone": 32400}, "list": []})
+    )
+    monkeypatch.setattr(weather_service, "datetime", _FixedNowDatetime)
+
+    assert weather_service.get_forecast_weather("Naha,JP", 1) is None
+
+
+def test_weather_get_forecast_weather_timeout_returns_none(monkeypatch):
+    monkeypatch.setattr(settings, "OPENWEATHER_API_KEY", "dummy-key")
+
+    def _raise_timeout(*args, **kwargs):
+        raise httpx.TimeoutException("timed out")
+
+    monkeypatch.setattr(httpx, "get", _raise_timeout)
+
+    assert weather_service.get_forecast_weather("Naha,JP", 1) is None
+
+
+def test_weather_get_forecast_weather_non_200_returns_none(monkeypatch):
+    monkeypatch.setattr(settings, "OPENWEATHER_API_KEY", "dummy-key")
+    monkeypatch.setattr(httpx, "get", lambda *a, **k: _FakeResponse(401, {}))
+
+    assert weather_service.get_forecast_weather("Naha,JP", 1) is None
+
+
+def test_weather_get_forecast_weather_missing_api_key_returns_none(monkeypatch):
+    monkeypatch.setattr(settings, "OPENWEATHER_API_KEY", None)
+
+    assert weather_service.get_forecast_weather("Naha,JP", 1) is None
+
+
+def test_weather_get_forecast_weather_days_offset_out_of_range_returns_none(monkeypatch):
+    monkeypatch.setattr(settings, "OPENWEATHER_API_KEY", "dummy-key")
+
+    assert weather_service.get_forecast_weather("Naha,JP", 0) is None
+    assert weather_service.get_forecast_weather("Naha,JP", 6) is None
+
+
+# --- 11.3.2節: location_extraction_service.extract_location_date ---
+
+
+def test_extract_location_date_client_none_returns_default():
+    result = location_extraction_service.extract_location_date(None, "明日沖縄で")
+
+    assert result.city is None
+    assert result.days_offset is None
+
+
+def test_extract_location_date_success():
+    fake_client = MagicMock()
+    fake_client.chat.completions.create.return_value = _fake_openai_response(
+        json.dumps({"city": "Naha,JP", "days_offset": 1})
+    )
+
+    result = location_extraction_service.extract_location_date(fake_client, "明日沖縄で会議です")
+
+    assert result.city == "Naha,JP"
+    assert result.days_offset == 1
+    assert fake_client.chat.completions.create.call_count == 1
+
+
+def test_extract_location_date_invalid_json_returns_default_without_retry():
+    fake_client = MagicMock()
+    fake_client.chat.completions.create.return_value = _fake_openai_response("not valid json")
+
+    result = location_extraction_service.extract_location_date(fake_client, "今日のコーデ")
+
+    assert result.city is None
+    assert result.days_offset is None
+    assert fake_client.chat.completions.create.call_count == 1
+
+
+def test_extract_location_date_schema_mismatch_returns_default():
+    fake_client = MagicMock()
+    fake_client.chat.completions.create.return_value = _fake_openai_response(
+        json.dumps({"item_ids": [], "suggestion_text": "x", "styling_reason": "y"})
+    )
+
+    result = location_extraction_service.extract_location_date(fake_client, "今日のコーデ")
+
+    assert result.city is None
+    assert result.days_offset is None
+
+
+# --- 11.3.3節: weather_resolution_service.resolve_weather ---
+
+
+def test_resolve_weather_explicit_city_takes_priority(client, monkeypatch):
+    monkeypatch.setattr(
+        weather_resolution_module,
+        "extract_location_date",
+        lambda *a, **k: LocationDateExtraction(city="Naha,JP", days_offset=0),
+    )
+    called = {}
+    monkeypatch.setattr(
+        weather_resolution_module, "get_current_weather", lambda city: called.setdefault("city", city)
+    )
+
+    resolve_weather("明日沖縄で", "Tokyo,JP")
+
+    assert called["city"] == "Tokyo,JP"
+
+
+def test_resolve_weather_uses_extracted_city_when_no_explicit(client, monkeypatch):
+    monkeypatch.setattr(
+        weather_resolution_module,
+        "extract_location_date",
+        lambda *a, **k: LocationDateExtraction(city="Naha,JP", days_offset=0),
+    )
+    called = {}
+    monkeypatch.setattr(
+        weather_resolution_module, "get_current_weather", lambda city: called.setdefault("city", city)
+    )
+
+    resolve_weather("沖縄の天気は?", None)
+
+    assert called["city"] == "Naha,JP"
+
+
+def test_resolve_weather_days_offset_zero_calls_current(client, monkeypatch):
+    monkeypatch.setattr(
+        weather_resolution_module, "extract_location_date", lambda *a, **k: LocationDateExtraction(None, 0)
+    )
+    called = {}
+    monkeypatch.setattr(
+        weather_resolution_module, "get_current_weather", lambda city: called.setdefault("current", city)
+    )
+    monkeypatch.setattr(
+        weather_resolution_module, "get_forecast_weather", lambda city, d: called.setdefault("forecast", (city, d))
+    )
+
+    resolve_weather("今日のコーデ", None)
+
+    assert "current" in called
+    assert "forecast" not in called
+
+
+def test_resolve_weather_days_offset_in_range_calls_forecast(client, monkeypatch):
+    monkeypatch.setattr(
+        weather_resolution_module, "extract_location_date", lambda *a, **k: LocationDateExtraction("Naha,JP", 1)
+    )
+    called = {}
+    monkeypatch.setattr(
+        weather_resolution_module, "get_current_weather", lambda city: called.setdefault("current", city)
+    )
+    monkeypatch.setattr(
+        weather_resolution_module, "get_forecast_weather", lambda city, d: called.setdefault("forecast", (city, d))
+    )
+
+    resolve_weather("明日沖縄で", None)
+
+    assert called.get("forecast") == ("Naha,JP", 1)
+    assert "current" not in called
+
+
+def test_resolve_weather_sentinel_skips_fetch(client, monkeypatch):
+    monkeypatch.setattr(
+        weather_resolution_module, "extract_location_date", lambda *a, **k: LocationDateExtraction("Naha,JP", 6)
+    )
+    called = {}
+    monkeypatch.setattr(
+        weather_resolution_module, "get_current_weather", lambda city: called.setdefault("current", city)
+    )
+    monkeypatch.setattr(
+        weather_resolution_module, "get_forecast_weather", lambda city, d: called.setdefault("forecast", (city, d))
+    )
+
+    result = resolve_weather("来月沖縄で", None)
+
+    assert result is None
+    assert called == {}
+
+
+def test_resolve_weather_extraction_failure_falls_back_to_default_city_current(client, monkeypatch):
+    monkeypatch.setattr(
+        weather_resolution_module, "extract_location_date", lambda *a, **k: LocationDateExtraction(None, None)
+    )
+    called = {}
+    monkeypatch.setattr(
+        weather_resolution_module, "get_current_weather", lambda city: called.setdefault("current", city)
+    )
+
+    resolve_weather("今日のコーデ", None)
+
+    assert called["current"] == settings.DEFAULT_CITY
+
+
+# --- routerレベル統合テスト ---
+
+
+def test_suggest_endpoint_uses_forecast_when_future_date_mentioned(client, monkeypatch):
+    tops_id = _create_completed_item(category="tops")
+
+    fake_client = MagicMock()
+    fake_client.chat.completions.create.side_effect = [
+        _fake_openai_response(json.dumps({"city": "Naha,JP", "days_offset": 1})),
+        _fake_openai_response(
+            json.dumps(
+                {"item_ids": [tops_id], "suggestion_text": "明日は暖かいので軽装です。", "styling_reason": "気温に合わせて。"}
+            )
+        ),
+    ]
+    monkeypatch.setattr(main_module.app.state, "openai_client", fake_client, raising=False)
+
+    fake_weather = WeatherInfo(
+        city="Naha", temp=29.0, feels_like=31.0, description="晴れ", humidity=65, wind_speed=3.5, forecast_date="2026-08-08"
+    )
+    monkeypatch.setattr(weather_resolution_module, "get_forecast_weather", lambda city, d: fake_weather)
+
+    resp = client.post("/api/suggest", json={"request_text": "明日沖縄で会議です"})
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["weather"]["forecast_date"] == "2026-08-08"
+    assert fake_client.chat.completions.create.call_count == 2
+
+
+def test_suggest_endpoint_use_weather_false_skips_extraction_call(client, monkeypatch):
+    tops_id = _create_completed_item(category="tops")
+
+    fake_client = MagicMock()
+    fake_client.chat.completions.create.return_value = _fake_openai_response(
+        json.dumps({"item_ids": [tops_id], "suggestion_text": "シンプルな一着です。", "styling_reason": "手持ちを活用。"})
+    )
+    monkeypatch.setattr(main_module.app.state, "openai_client", fake_client, raising=False)
+
+    resp = client.post("/api/suggest", json={"request_text": "今日のコーデ", "use_weather": False})
+
+    assert resp.status_code == 200
+    assert fake_client.chat.completions.create.call_count == 1
