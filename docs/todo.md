@@ -858,7 +858,7 @@ chore(backend): プロジェクト雛形を作成
 
 - **目的**: design.md 15.6節の手順を実施
 - **前提条件**: T6-3(mainにmerge済みであること)
-- **変更対象ファイル**: `deploy/terraform/{versions.tf,main.tf,variables.tf,outputs.tf,cloud-init.yaml,terraform.tfvars.example}`、`.gitignore`(terraform state/tfvars除外)、`frontend/src/lib/api.ts`(SSR/クライアントでベースURLを分離)、`deploy/docker-compose.yml`(frontendに`INTERNAL_API_BASE_URL`追加)
+- **変更対象ファイル**: `deploy/terraform/{versions.tf,main.tf,variables.tf,outputs.tf,cloud-init.yaml,terraform.tfvars.example}`、`.gitignore`(terraform state/tfvars除外)、`frontend/src/lib/api.ts`(SSR/クライアントでベースURLを分離)、`deploy/docker-compose.yml`(frontendに`INTERNAL_API_BASE_URL`追加)、`frontend/src/components/Header.tsx`(新規)、`frontend/src/app/layout.tsx`(Header組み込み)
 - **実装内容**: design.md 15.6.1(手動事前準備: OCI APIキー作成・SSH鍵準備)→ 15.6.2のTerraform構成一式を実装(VCN・パブリックサブネット・IGW・ルートテーブル・セキュリティリスト・A1.Flexインスタンス、cloud-initでDocker/Docker Compose自動導入・iptables 80/443許可)→ 15.6.3の適用手順で`terraform apply`→ 15.6.4のアプリデプロイ手順(git clone・モデル重みscp・`.env`作成・`docker compose up -d --build`)→ DNS設定
 - **サブタスク**:
   - [x] `terraform validate` / `terraform plan` が通る
@@ -873,7 +873,7 @@ chore(backend): プロジェクト雛形を作成
 - **推奨コミットメッセージ**: `feat(deploy): add terraform for oci network and compute instance`
 - **チェック**: 実装済み [x] / テスト済み [x] / commit済み [x] / push済み [ ]
 - **commit hash**: `3e31033`
-- **備考**: `ap-osaka-1`リージョンでVCN・IGW・ルートテーブル・セキュリティリスト・パブリックサブネットの作成には成功(`terraform state list`で確認可能)。A1.Flexインスタンスの作成は「Out of host capacity」で継続的に失敗していたが、OCIアカウントをPay As You Goにアップグレード後、1分間隔リトライの1回目で確保に成功(`ap-osaka-1`、2 OCPU/12GB)。認証エラー(401)は APIキー作成直後の伝播遅延が原因と判明(数十秒待てば解消)。APIキー・ハッシュ・OCI認証情報(tenancy/user OCID・fingerprint・秘密鍵パス)は`~/.oci/`・`~/.ssh/`・ローカルの`terraform.tfvars`のみに置き、Git管理外とする。デプロイ後のE2E確認で2件の設計不備を発見・修正: ①**VM内iptablesがSSH以外の新規接続をデフォルトでREJECT**しており、OCIセキュリティリストで80/443を許可していてもVM内で二重に塞がれ、Let's EncryptのACME検証が失敗していた(cloud-initにiptables許可ルール追加で対処)。②**Next.jsのServer Component(SSR)からのfetchが相対URL(`NEXT_PUBLIC_API_BASE_URL=""`)を解決できず**アイテム一覧取得が失敗していた(サーバー側専用の`INTERNAL_API_BASE_URL=http://backend:8000`を追加し、クライアント/サーバーでベースURLを分離)。また、bcryptハッシュ(`CADDY_BASIC_AUTH_HASH`)はdocker composeの`.env`自動読み込みで`$`が変数展開され値が壊れるため、`.env`内で`$`を`$$`にエスケープする対応も実施(design.md 15.5節に記載)
+- **備考**: `ap-osaka-1`リージョンでVCN・IGW・ルートテーブル・セキュリティリスト・パブリックサブネットの作成には成功(`terraform state list`で確認可能)。A1.Flexインスタンスの作成は「Out of host capacity」で継続的に失敗していたが、OCIアカウントをPay As You Goにアップグレード後、1分間隔リトライの1回目で確保に成功(`ap-osaka-1`、2 OCPU/12GB)。認証エラー(401)は APIキー作成直後の伝播遅延が原因と判明(数十秒待てば解消)。APIキー・ハッシュ・OCI認証情報(tenancy/user OCID・fingerprint・秘密鍵パス)は`~/.oci/`・`~/.ssh/`・ローカルの`terraform.tfvars`のみに置き、Git管理外とする。デプロイ後のE2E確認で2件の設計不備を発見・修正: ①**VM内iptablesがSSH以外の新規接続をデフォルトでREJECT**しており、OCIセキュリティリストで80/443を許可していてもVM内で二重に塞がれ、Let's EncryptのACME検証が失敗していた(cloud-initにiptables許可ルール追加で対処)。②**Next.jsのServer Component(SSR)からのfetchが相対URL(`NEXT_PUBLIC_API_BASE_URL=""`)を解決できず**アイテム一覧取得が失敗していた(サーバー側専用の`INTERNAL_API_BASE_URL=http://backend:8000`を追加し、クライアント/サーバーでベースURLを分離)。また、bcryptハッシュ(`CADDY_BASIC_AUTH_HASH`)はdocker composeの`.env`自動読み込みで`$`が変数展開され値が壊れるため、`.env`内で`$`を`$$`にエスケープする対応も実施(design.md 15.5節に記載)。③**画面間のナビゲーションが設計・実装ともに一度も存在しなかった**(design.md 12.1節の4画面は相互リンクを持たず、`/`のアイテム0件時リンクのみが唯一の導線)。スマホE2Eで発覚し、`Header`コンポーネントを追加して`app/layout.tsx`に組み込み(design.md 12.2節に追記)
 
 ## T6-5: バックアップ・復元スクリプト
 

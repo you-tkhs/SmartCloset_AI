@@ -1121,6 +1121,7 @@ def get_current_weather(city: str) -> WeatherInfo | None:
 
 | コンポーネント | 配置画面 | 役割 |
 |---|---|---|
+| `Header` | 全画面(`app/layout.tsx`) | アプリ名+クローゼット/衣服を登録/コーデ提案への導線(4画面はこれ以外に相互リンクを持たないため必須) |
 | `UploadDropzone` | /upload | ファイル選択・ドラッグ&ドロップ・形式/サイズのクライアント事前チェック |
 | `ImagePreview` | /upload | 選択画像のプレビュー(任意でCanvas縮小。12.7節) |
 | `ProcessingStatus` | /upload | 状態機械(12.3節)に応じたスピナー・メッセージ・再試行ボタン |
