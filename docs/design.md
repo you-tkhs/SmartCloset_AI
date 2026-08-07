@@ -1419,7 +1419,7 @@ Oracle Cloudアカウント作成(クレカ登録必要・Always Free枠内は�
 
 ### 15.6.2 Terraform構成(`deploy/terraform/`)
 
-- **管理対象**: VCN、パブリックサブネット、インターネットゲートウェイ、ルートテーブル、セキュリティリスト(ingress: 22は`var.ssh_allowed_cidr`限定・80/443は全公開、egress: 全許可)、`VM.Standard.A1.Flex`コンピュートインスタンス(Ubuntu、cloud-initで`docker.io`・`docker-compose-v2`を自動インストールし`docker`グループに追加)
+- **管理対象**: VCN、パブリックサブネット、インターネットゲートウェイ、ルートテーブル、セキュリティリスト(ingress: 22は`var.ssh_allowed_cidr`限定・80/443は全公開、egress: 全許可)、`VM.Standard.A1.Flex`コンピュートインスタンス(Ubuntu、cloud-initで`docker.io`・`docker-compose-v2`・`sqlite3`(16章のバックアップスクリプトが使用)を自動インストールし`docker`グループに追加)
 - **VM内ファイアウォール(iptables)の注意**: OracleのUbuntuイメージは`netfilter-persistent`が起動時に`/etc/iptables/rules.v4`を読み込み、**デフォルトでSSH(22)以外の新規接続を`REJECT`する**(OCIセキュリティリストで80/443を許可していてもVM内で二重に塞がれる)。cloud-initの`runcmd`で80/443のACCEPTルールを追加し`netfilter-persistent save`で永続化する
 - **ファイル構成**: `versions.tf`(OCI providerバージョン固定)、`main.tf`(プロバイダ・各リソース定義)、`variables.tf`、`outputs.tf`(`instance_public_ip`)、`cloud-init.yaml`、`terraform.tfvars.example`(キー名のみ)
 - **state管理**: ローカルstate(`terraform.tfstate`)。シングルユーザー運用のためリモートバックエンドは導入しない。`terraform.tfvars`・`terraform.tfstate*`・`.terraform/`は**Git管理外**(OCIDそのものは秘密情報ではないが、実運用値・stateをリポジトリで追跡しない方針に統一する)
@@ -1458,8 +1458,8 @@ SQLite DBと画像ストレージは対応関係を持つため、**同一時点
 ## 16.1 バックアップ手順(MVP: 手動。scripts/backup.sh)
 
 1. **書き込み停止**: `docker compose stop backend`(アップロード・編集・削除を止め、DBとファイルの整合時点を作る)
-2. DBバックアップ: `sqlite3 backend/data/smartcloset.db ".backup '{BACKUP_DIR}/smartcloset_backup_{TS}.db'"`(SQLiteのバックアップAPIを使用。単純な `cp` はWALと不整合の恐れがあるため使わない)
-3. 画像アーカイブ: `tar czf {BACKUP_DIR}/smartcloset_backup_{TS}.tar.gz -C backend storage --exclude storage/tmp`
+2. DBバックアップ: `sudo sqlite3 backend/data/smartcloset.db ".backup '{BACKUP_DIR}/smartcloset_backup_{TS}.db'"`(SQLiteのバックアップAPIを使用。単純な `cp` はWALと不整合の恐れがあるため使わない。`backend/data`はbackendコンテナ=root実行が作成するためroot所有であり、書き込みに`sudo`が必要)
+3. 画像アーカイブ: `tar czf {BACKUP_DIR}/smartcloset_backup_{TS}.tar.gz --exclude=storage/tmp -C backend storage`(`--exclude`はGNU tarでは位置引数より前に置く必要がある)
 4. `docker compose start backend`
 5. 世代整理: `BACKUP_RETENTION_COUNT`(=7)世代を超える古いバックアップを削除
 

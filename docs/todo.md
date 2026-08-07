@@ -882,16 +882,16 @@ chore(backend): プロジェクト雛形を作成
 - **変更対象ファイル**: `scripts/backup.sh`、`scripts/restore.sh`
 - **実装内容**: 16.1節の手順(backend停止→sqlite3 .backup→tar(tmp除外)→再開→世代整理BACKUP_RETENTION_COUNT=7)。同一タイムスタンプ命名 `smartcloset_backup_{YYYYMMDD_HHMMSS}.{db,tar.gz}`。restore.sh は16.2節(退避→配置→起動→**DB内画像パスと実ファイルの存在検証**)
 - **サブタスク**:
-  - [ ] VM上でbackup実行→2ファイル生成・タイムスタンプ一致
-  - [ ] restore実行→アプリが復元データで動作・検証スクリプトが欠損ゼロを報告
-  - [ ] 8世代目作成で最古が削除される
+  - [x] VM上でbackup実行→2ファイル生成・タイムスタンプ一致
+  - [x] restore実行→アプリが復元データで動作・検証スクリプトが欠損ゼロを報告
+  - [x] 8世代目作成で最古が削除される
 - **完了条件**: サブタスク全消化
 - **検証コマンド**: `bash scripts/backup.sh && ls ~/smartcloset_backups/`
 - **想定される正常結果**: `.db` と `.tar.gz` が同一タイムスタンプで生成
 - **推奨コミットメッセージ**: `feat(ops): add consistent backup and restore scripts`
-- **チェック**: 実装済み [ ] / テスト済み [ ] / commit済み [ ] / push済み [ ]
+- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [ ] / push済み [ ]
 - **commit hash**: ______
-- **備考**: 同一VM内のみのバックアップはVM消失に無力(Known Limitation。将来Object Storage退避)
+- **備考**: 同一VM内のみのバックアップはVM消失に無力(Known Limitation。将来Object Storage退避)。VM上でのテストで3件判明・修正: ①`backend/data`・`backend/storage`はbackendコンテナ(root実行)が作成するためroot所有(755)で、`ubuntu`ユーザーからの書き込み・sqlite3の`.backup`が権限不足で失敗する→該当操作に`sudo`を付与(design.md 16.1節に追記)。②`tar`の`--exclude`オプションは位置引数より前に置く必要がある(GNU tarの仕様。design.md 16.1節のコマンド例を修正)。③`sqlite3` CLIがVM(cloud-init)に含まれていなかった→cloud-init.yamlの`packages`に追加(design.md 15.6.2節に追記)。VM上で実データ(アイテム1件)を用いてbackup→restore→検証スクリプトの欠損ゼロ確認、および8世代目作成時の世代整理(最古削除)まで実施
 
 ## T6-6: 本番E2E(スマホ)
 
