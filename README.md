@@ -2,11 +2,16 @@
 
 **服の写真を撮るだけ。AIが切り抜き・属性抽出してクローゼット化し、天気と気分に合わせてコーディネートを提案するWebアプリ。**
 
-- 開発ステータス: **AIロジックのPoC完了(2026-07)** → 現在Webアプリ実装フェーズ([ロードマップ](#ロードマップ))
+- 開発ステータス: **稼働中**(Oracle Cloud上で本番稼働、Phase 0〜6実装完了。[ロードマップ](#ロードマップ))
 - 技術スタック: YOLOv8-seg(ファインチューニング) / OpenAI GPT-5.4-nano / FastAPI / Next.js / SQLite / Docker + Caddy(Oracle Cloud ¥0運用)
 
-<!-- TODO(デモ): PoCパイプラインの4連画像(Original / Mask / Transparent / Annotated)と完成後のアプリ画面を掲載する。
-     ai_prototype/Poc/output/ は .gitignore 対象のため、掲載する画像は選抜して docs/images/ に意図的にcommitすること -->
+### AIパイプラインの処理過程
+
+| Original | Mask | Transparent | Annotated |
+|---|---|---|---|
+| ![original](docs/images/demo_original.jpeg) | ![mask](docs/images/demo_mask.png) | ![transparent](docs/images/demo_transparent.png) | ![annotated](docs/images/demo_annotated.png) |
+
+<!-- TODO(デモ): 完成後のアプリ画面のスクリーンショットを掲載する(UI改善パス実施後に追加予定) -->
 
 ## できること
 
@@ -148,8 +153,15 @@ jupyter lab ai_prototype/pipe-line/smartcloset_pipeline_functioned.ipynb
 - [x] Phase 2: クローゼットCRUD(閲覧・手動補正・削除)
 - [x] Phase 3: コーディネート提案(天気API+LLM)
 - [x] Phase 4: フロントエンド(Next.js 4画面)
-- [ ] Phase 5: 仕上げ(エラー処理・ログ・README起動手順)
-- [ ] Phase 6: デプロイ(Oracle Cloud・¥0運用・バックアップ)
+- [x] Phase 5: 仕上げ(エラー処理・ログ・README起動手順)
+- [x] Phase 6: デプロイ(Oracle Cloud・¥0運用・バックアップ)
+
+### 今後の展望
+
+- **MLOpsモニタリング**(優先度: 高): `yolo_confidence`分布・`no_mask`率・`is_user_corrected`率をSQLで定点観測し、ユーザー補正データを再学習サイクルへ還元する([design.md 18.2節](docs/design.md))
+- **マルチユーザー化**: 全テーブルに`user_id`列を保持済みのため、認証機構の追加のみで対応可能
+- **Object Storage移行**: 現状はVM内バックアップのみ(VM消失に対応不可)。Oracle Object Storage(Always Free 20GB)への外部退避を検討
+- その他の拡張候補は[design.md 18.1節](docs/design.md)を参照
 
 ## ドキュメント
 
