@@ -303,7 +303,7 @@ SmartCloset_AI/
 | `schemas/weather.py` | `WeatherInfo` | 同左 | - |
 | `routers/upload.py` | `POST /api/upload`。7章の処理順序の実施。**BackgroundTasksディスパッチ(Celery移行時の唯一の差し替え点)** | router | image_validation_service, storage_service, pipeline_service, database |
 | `routers/items.py` | `GET /api/items`, `GET /api/items/{id}`, `GET /api/items/{id}/status`(lazy stale検出込み), `PATCH /api/items/{id}`, `DELETE /api/items/{id}` | router | database, storage_service, pipeline_service(stale判定共通関数) |
-| `routers/suggest.py` | `POST /api/suggest` | router | suggest_service, weather_service, database |
+| `routers/suggest.py` | `POST /api/suggest` | router | suggest_service, weather_resolution_service, database |
 | `routers/weather.py` | `GET /api/weather` | router | weather_service |
 | `routers/health.py` | `GET /api/health` | router | database, storage_service, config |
 | `services/image_validation_service.py` | 拡張子/MIME/シグネチャ検証、実デコード、ピクセル数検証、EXIF補正、正規化、EXIF除去(7.4節) | `validate_and_normalize(tmp_path, declared_content_type, original_filename) -> NormalizedImage` | config, Pillow |
@@ -311,10 +311,13 @@ SmartCloset_AI/
 | `services/yolo_service.py` | ノートブック `segment_item()` の移植(8.2節) | `segment_item(model, image_path, conf) -> SegmentResult` | ultralytics, cv2, numpy |
 | `services/llm_service.py` | ノートブック `extract_metadata_with_openai()` / `parse_json_safely()` の移植+strictスキーマ+リトライ(8.3節) | `extract_metadata(client, image_path) -> dict` | openai, prompts/metadata_prompt |
 | `services/pipeline_service.py` | `run_pipeline_for_item(item_id)`(8.4節)。**AI同時実行ロック**(8.5節)。stale復旧関数(8.6節) | `run_pipeline_for_item(item_id)`, `recover_stale_processing(db)`, `mark_item_failed(db, item, reason)` | yolo_service, llm_service, storage_service, database |
-| `services/weather_service.py` | OpenWeatherMap呼び出し(11.3節) | `get_current_weather(city) -> WeatherInfo \| None` | httpx, config |
+| `services/weather_service.py` | OpenWeatherMap呼び出し。現在天気+予報(11.3節) | `get_current_weather(city) -> WeatherInfo \| None`, `get_forecast_weather(city, days_offset) -> WeatherInfo \| None` | httpx, config |
+| `services/location_extraction_service.py` | request_textから場所・日付を抽出する軽量LLM呼び出し(リトライなし・fail-soft。11.3節) | `extract_location_date(client, request_text, today=None) -> LocationDateExtraction` | openai, prompts/location_prompt |
+| `services/weather_resolution_service.py` | 場所・日付抽出→現在天気/予報の呼び分けを合成(11.3節) | `resolve_weather(request_text, explicit_city) -> WeatherInfo \| None` | location_extraction_service, weather_service |
 | `services/suggest_service.py` | クローゼットJSON構築→LLM→item_ids検証→ログ記録(11章) | `create_suggestion(db, request_text, weather) -> SuggestResult` | openai, prompts/suggest_prompt, database |
 | `prompts/metadata_prompt.py` | 属性抽出プロンプト定数+strict JSON Schema(付録B.1) | `METADATA_PROMPT`, `METADATA_JSON_SCHEMA` | - |
 | `prompts/suggest_prompt.py` | コーデ提案プロンプト定数+strict JSON Schema(付録B.2) | `SUGGEST_SYSTEM_PROMPT`, `build_suggest_user_prompt()`, `SUGGEST_JSON_SCHEMA` | - |
+| `prompts/location_prompt.py` | 場所・日付抽出プロンプト定数+strict JSON Schema(付録B.3) | `LOCATION_SYSTEM_PROMPT`, `build_location_user_prompt()`, `LOCATION_JSON_SCHEMA` | - |
 
 ## 4.3 backend/requirements.txt
 
@@ -574,17 +577,17 @@ enum違反は 422 `validation_error`。
 | フィールド | 型 | 必須 | 検証 |
 |---|---|---|---|
 | `request_text` | string | ○ | 1〜500文字。空白のみは422 |
-| `city` | string \| null | - | 未指定なら `DEFAULT_CITY` |
-| `use_weather` | boolean | - | 既定 `true`。falseなら天気取得をスキップ |
+| `city` | string \| null | - | **明示指定時のみ優先使用**。未指定なら`request_text`から場所を抽出し(11.3節)、抽出できなければ`DEFAULT_CITY` |
+| `use_weather` | boolean | - | 既定 `true`。falseなら天気取得(場所・日付抽出含む)をスキップ |
 
 ### 応答 200(`SuggestResponse`)
 
 | フィールド | 型 | 説明 |
 |---|---|---|
-| `suggestion_text` | string | 提案文(200字以内を指示) |
+| `suggestion_text` | string | 提案文(200字以内を指示。天気情報がある場合は自然に触れる) |
 | `styling_reason` | string | 選定理由 |
 | `items` | ItemResponse[] | 推奨アイテム(DB照合で有効なもののみ。全滅時は空配列) |
-| `weather` | WeatherInfo \| null | 取得成功時のみ |
+| `weather` | WeatherInfo \| null | 取得成功時のみ。`request_text`から近未来の日付が読み取れた場合は予報(`forecast_date`が設定される) |
 | `weather_available` | boolean | 天気を提案に使えたか |
 | `log_id` | string | coordinate_logs のID |
 
@@ -600,15 +603,17 @@ enum違反は 422 `validation_error`。
 
 ## 6.9 GET /api/weather
 
-クエリ: `city`(任意。既定 `DEFAULT_CITY`)。
+クエリ: `city`(任意。既定 `DEFAULT_CITY`)。常に**現在**の天気を返す(場所・日付抽出は行わない。11.3節の抽出・予報機能は`POST /api/suggest`専用)。
 
 応答 200(`WeatherInfo`):
 
 ```json
-{ "city": "Morioka", "temp": 24.3, "feels_like": 25.1, "description": "晴れ", "humidity": 60, "wind_speed": 3.2 }
+{ "city": "Morioka", "temp": 24.3, "feels_like": 25.1, "description": "晴れ", "humidity": 60, "wind_speed": 3.2, "forecast_date": null }
 ```
 
-取得失敗時は 503 `service_unavailable`(retryable: true)。この失敗はフロントエンドで「天気情報を取得できませんでした」表示に留め、提案機能自体は利用可能とする。
+取得失敗時は 503 `service_unavailable`(retryable: true)。
+
+**注記**: フロントエンドは現在このエンドポイントを使用していない(旧`WeatherBadge`は廃止し、天気は`POST /api/suggest`の応答に統合。11.3節)。バックエンドAPIとしては独立してテスト済み・保守コストが低いため、手動確認用に維持する。
 
 ## 6.10 GET /api/health
 
@@ -1058,16 +1063,15 @@ def delete_tmp(tmp_path: Path) -> None:
 
 # 11. コーディネート提案機能詳細
 
-## 11.1 処理フロー(suggest_service.create_suggestion)
+## 11.1 処理フロー(routers/suggest.py + suggest_service.create_suggestion)
 
-1. `status="completed"` のアイテムをDBから全件取得(processing / failed は**LLMに送らない**)
-2. **0件なら LLM を呼ばずに** 400 `no_completed_items` を返す(routerで判定)
-3. `use_weather=true` なら `weather_service.get_current_weather(city)` を呼ぶ(タイムアウト5秒)。失敗時は `weather=None` として続行(**提案全体を失敗させない**)
-4. クローゼットJSONを構築: `[{"id", "category", "color_primary", "color_secondary", "pattern", "material", "silhouette"}, ...]`(**画像は送らない**。トークン量削減)
-5. プロンプト(付録B.2)を組み立て、strict JSON Schema指定でLLM呼び出し。リトライは8.3節と同方針(最大2回・指数バックオフ)。それでも失敗なら 503 `service_unavailable`
-6. **返却 `item_ids` をサーバー側で検証**: 手順1の取得結果に存在するIDのみ残し、存在しないIDは除外してWARNINGログに記録。**全IDが無効だった場合**は `items: []` のまま `suggestion_text` を返し(200)、WARNINGログに記録
-7. `coordinate_logs` に記録(検証後の有効IDを保存)
-8. `SuggestResponse` を返す
+1. `status="completed"` のアイテムをDBから全件取得(processing / failed は**LLMに送らない**)。0件なら**LLM を呼ばずに** 400 `no_completed_items` を返す(routerで判定)
+2. `use_weather=true` なら **`weather_resolution_service.resolve_weather(request_text, city)`** を呼ぶ(routerが呼ぶ。11.3節: 内部で場所・日付抽出→現在天気/予報の呼び分けを行う)。失敗時は `weather=None` として続行(**提案全体を失敗させない**)。`create_suggestion`自体はこの解決ロジックを知らず、解決済みの`weather`のみを受け取る(シグネチャ不変)
+3. `suggest_service.create_suggestion(db, request_text, weather)` を呼ぶ。クローゼットJSONを構築: `[{"id", "category", "color_primary", "color_secondary", "pattern", "material", "silhouette"}, ...]`(**画像は送らない**。トークン量削減)
+4. プロンプト(付録B.2)を組み立て、strict JSON Schema指定でLLM呼び出し。リトライは8.3節と同方針(最大2回・指数バックオフ)。それでも失敗なら 503 `service_unavailable`
+5. **返却 `item_ids` をサーバー側で検証**: 手順1の取得結果に存在するIDのみ残し、存在しないIDは除外してWARNINGログに記録。**全IDが無効だった場合**は `items: []` のまま `suggestion_text` を返し(200)、WARNINGログに記録
+6. `coordinate_logs` に記録(検証後の有効IDを保存。`weather_json`には`forecast_date`を含む`WeatherInfo`全体を保存)
+7. `SuggestResponse` を返す
 
 ## 11.2 コーディネート構成ルール(プロンプトに明記。付録B.2)
 
@@ -1078,18 +1082,55 @@ def delete_tmp(tmp_path: Path) -> None:
 - カテゴリが不足している場合(例: bottomsが1点もない)も、**不足を suggestion_text で伝えつつ最善の組み合わせを提案**する(エラーにしない)
 - suggestion_text は200字以内、styling_reason は選定理由を簡潔に。日本語で出力
 
-## 11.3 weather_service の仕様
+## 11.3 天気解決の仕様(weather_service / location_extraction_service / weather_resolution_service)
+
+コーデ提案は「ユーザーの自由記述から場所・日付を読み取り、該当する天気を使う」ことを目的とする(例:「明日沖縄で」→翌日の沖縄の予報)。この解決は3つのモジュールに分割する。
+
+### 11.3.1 weather_service(OpenWeatherMap呼び出し)
 
 ```python
 def get_current_weather(city: str) -> WeatherInfo | None:
     """OpenWeatherMap Current Weather Data APIを呼ぶ。失敗時はNoneを返す(例外を送出しない)。"""
+
+def get_forecast_weather(city: str, days_offset: int) -> WeatherInfo | None:
+    """OpenWeatherMap 5 Day / 3 Hour Forecast APIを呼ぶ。失敗時はNoneを返す(例外を送出しない)。
+    days_offsetは1〜5(0は呼び出し元がget_current_weatherを使うため対象外)。"""
 ```
 
-- エンドポイント: `https://api.openweathermap.org/data/2.5/weather?q={city}&units=metric&lang=ja&appid={OPENWEATHER_API_KEY}`
+- 現在天気エンドポイント: `https://api.openweathermap.org/data/2.5/weather?q={city}&units=metric&lang=ja&appid={OPENWEATHER_API_KEY}`
+- 予報エンドポイント: `https://api.openweathermap.org/data/2.5/forecast?q={city}&units=metric&lang=ja&appid={OPENWEATHER_API_KEY}`(無料枠: 3時間刻み×5日分、最大40件のlistを返す)
 - httpx同期クライアント、**タイムアウト5秒**、リトライなし
-- 抽出フィールド: `city`(name)、`temp`(main.temp)、`feels_like`(main.feels_like)、`description`(weather[0].description)、`humidity`(main.humidity)、`wind_speed`(wind.speed)
-- 失敗条件(タイムアウト・非200・パース失敗・キー未設定)ではWARNINGログを記録してNoneを返す
-- `GET /api/weather` ではNone時に 503 `service_unavailable` を返す(6.9節)。`POST /api/suggest` ではNone時に `weather_available: false` で続行する
+- 現在天気の抽出フィールド: `city`(name)、`temp`(main.temp)、`feels_like`(main.feels_like)、`description`(weather[0].description)、`humidity`(main.humidity)、`wind_speed`(wind.speed)。`forecast_date`は`None`
+- 予報の対象日エントリ選定: レスポンス直下の`city.timezone`(UTC秒オフセット)で各エントリの`dt`(UTC unixtime)をローカル時刻に変換し、`(現在UTC時刻 + timezoneオフセット + days_offset日)`の日付と一致するエントリの中から**正午(12:00)に最も近いもの**を採用する(サーバーコンテナのTZ設定に依存させないため、必ずAPIレスポンスの`timezone`を基準にする)。該当日のエントリが1件もない場合は代用せず`None`を返す。採用エントリの日付を`forecast_date`(ISO 8601、例: `"2026-08-08"`)に設定する
+- 失敗条件(タイムアウト・非200・パース失敗・キー未設定・対象日エントリなし)ではWARNINGログを記録してNoneを返す
+- `GET /api/weather` ではNone時に 503 `service_unavailable` を返す(6.9節、現在天気のみ使用)。`POST /api/suggest` ではNone時に `weather_available: false` で続行する
+
+### 11.3.2 location_extraction_service(場所・日付抽出)
+
+```python
+def extract_location_date(client, request_text: str, today: date | None = None) -> LocationDateExtraction:
+    """request_textから場所(city)・日付(days_offset)をLLMで抽出する。
+    リトライは行わない(1回勝負)。失敗時は例外を送出せずLocationDateExtraction(None, None)を返す。"""
+```
+
+- 付録B.3のプロンプト・strict JSON Schemaを使用。`city`はOpenWeatherMap互換の英語都市名(例:「沖縄」→`"Naha,JP"`)、`days_offset`は`0`(今日/未指定)〜`5`(5日後)、または`6`(**6日以上先・過去日・不明瞭な日付を表す明示的センチネル**)
+- 「本日の日付」はサーバーコンテナのTZ設定に依存させないよう、`zoneinfo.ZoneInfo("Asia/Tokyo")`で計算する
+- **リトライを行わない**(`llm_service.extract_metadata`や`suggest_service`の指数バックオフとは異なる方針)。理由: 天気解決のためのベストエフォートなヒント抽出であり、失敗しても「地名なし」として扱われるだけで提案全体の品質に致命的影響を与えないため、リトライの数秒コストに見合わない
+- 失敗条件(clientがNone・OpenAI API呼び出し失敗・JSON parse失敗・スキーマ不一致)ではINFOログを記録し`LocationDateExtraction(city=None, days_offset=None)`を返す
+
+### 11.3.3 weather_resolution_service(合成・呼び分け)
+
+```python
+def resolve_weather(request_text: str, explicit_city: str | None) -> WeatherInfo | None:
+    """extract_location_date → get_current_weather/get_forecast_weather の呼び分けを合成する。"""
+```
+
+- `city = explicit_city or extraction.city or settings.DEFAULT_CITY`(SuggestRequest.cityで明示指定があれば最優先)
+- `days_offset = extraction.days_offset or 0`
+- `days_offset == 0` → `get_current_weather(city)`
+- `1 <= days_offset <= 5` → `get_forecast_weather(city, days_offset)`
+- `days_offset == 6`(センチネル) → 天気取得自体を行わず`None`を返す(不正確な情報を出すより誠実)
+- `routers/suggest.py`はこの関数のみを呼び、`create_suggestion`には解決済みの`WeatherInfo | None`を渡す(`create_suggestion`のシグネチャ・内部ロジックは本節の変更による影響を受けない)
 
 ## 11.4 異常系一覧
 
@@ -1099,6 +1140,8 @@ def get_current_weather(city: str) -> WeatherInfo | None:
 | processing / failed のアイテム | クローゼットJSONに含めない |
 | カテゴリ不足 | エラーにせずLLMが不足を明示した提案を返す(11.2節) |
 | 天気API失敗 | `weather_available: false` で続行。weather_jsonはNULLでログ記録 |
+| 場所・日付抽出の失敗 | `DEFAULT_CITY`+現在天気にフォールバック(抽出失敗≒地名なしとして扱う) |
+| 抽出された日付が6日以上先・不明瞭 | 天気取得自体をスキップし`weather_available: false` |
 | LLMが存在しないitem_idを返す | サーバー側で除外(WARNINGログ) |
 | LLMの全item_idが無効 | `items: []` で `suggestion_text` のみ返す(200) |
 | LLM呼び出し失敗(リトライ後) | 503 `service_unavailable`(retryable: true)。coordinate_logsには記録しない |
@@ -1115,7 +1158,7 @@ def get_current_weather(city: str) -> WeatherInfo | None:
 | クローゼット一覧 | `/` | アイテムグリッド(透過PNG)、フィルタ(category/color/pattern/material)、ページング、failed/processingバッジ、詳細への導線 |
 | 衣服登録 | `/upload` | 画像選択(ファイル選択+ドラッグ&ドロップ)、プレビュー、アップロード、処理中ポーリング、結果表示 |
 | アイテム詳細 | `/items/[id]` | 原画像/透過画像の切替表示、メタデータ表示・編集(PATCH)、削除 |
-| コーデ提案 | `/suggest` | 天気バッジ、要望入力、提案結果(テキスト+推奨アイテムカードのハイライト) |
+| コーデ提案 | `/suggest` | 要望入力、提案結果を吹き出しチャット風に表示(天気は提案文に自然に統合)+推奨アイテムカード |
 
 ## 12.2 コンポーネント一覧
 
@@ -1130,8 +1173,7 @@ def get_current_weather(city: str) -> WeatherInfo | None:
 | `FilterBar` | / | category/color/pattern/materialフィルタ |
 | `MetadataEditForm` | /items/[id] | 6属性の編集フォーム(enumはセレクトボックス)→PATCH |
 | `SuggestForm` | /suggest | 要望テキスト入力+送信(送信中は無効化) |
-| `WeatherBadge` | /suggest | GET /api/weather の結果表示。失敗時「天気情報を取得できませんでした」 |
-| `SuggestionResult` | /suggest | suggestion_text / styling_reason+推奨ItemCardのハイライト表示 |
+| `SuggestionResult` | /suggest | suggestion_text / styling_reasonを吹き出しチャット風(アバターアイコン+吹き出し)に表示。天気が使えなかった場合のみ「※天気情報は考慮されていません」を吹き出し内に表示。推奨アイテムは吹き出し下にグリッド表示 |
 
 共通モジュール:
 
@@ -1765,14 +1807,21 @@ response = client.chat.completions.create(
 - 同一カテゴリからは原則1点まで(bag, hat, watch, glasses などの小物は状況に応じて任意)
 - 基本構成は「tops + bottoms」または「dress」。outer や shoes、小物は天候・状況に応じて加える
 - 該当するアイテムが乏しい場合も、その旨を suggestion_text で伝えつつ最善の組み合わせを提案する
+- 天気情報がある場合は、天気に触れながら提案理由を自然に述べる(例:「明日は28℃予想なので涼しい素材を選びました」)
 - suggestion_text は200字以内の提案文、styling_reason は選定理由を簡潔に書く
 - 日本語で出力する
 ```
 
-- `{weather_block}` 取得成功時:
+- `{weather_block}` 取得成功時(現在天気。`forecast_date`なし):
 
 ```text
 都市: {city} / 気温: {temp}°C / 体感: {feels_like}°C / 天候: {description} / 湿度: {humidity}%
+```
+
+- `{weather_block}` 取得成功時(予報。`forecast_date`あり。日付は日本語表現に変換して付加):
+
+```text
+都市: {city} / 気温: {temp}°C / 体感: {feels_like}°C / 天候: {description} / 湿度: {humidity}% / 日付: {forecast_dateを"8月8日"形式に変換}
 ```
 
 - `{weather_block}` 取得失敗時(または use_weather=false):
@@ -1799,6 +1848,55 @@ SUGGEST_JSON_SCHEMA = {
 ```
 
 response_format は B.1 と同じ完全形式(`name: "coordinate_suggestion"`)で渡す。
+
+## B.3 場所・日付抽出(location_prompt.py)
+
+11.3.2節: コーデ提案の`request_text`から天気取得用の場所・日付を抽出する軽量LLM呼び出し。**リトライを行わない**(11.3.2節参照)。
+
+### LOCATION_SYSTEM_PROMPT
+
+```text
+あなたはユーザーの文章から、天気を調べるために必要な「場所」と「日付」だけを
+抽出するアシスタントです。コーディネートの提案は行わず、場所と日付の抽出のみを行ってください。
+```
+
+### ユーザープロンプトテンプレート(build_location_user_prompt)
+
+```text
+# 本日の日付
+{today}({weekday})
+
+# ユーザーの文章
+{request_text}
+
+# 指示
+- 文章中に具体的な地名(市区町村・都道府県・国等)があれば city に設定する
+- city は OpenWeatherMap で検索可能な英語表記にする
+  (例: 沖縄/那覇→"Naha,JP"、東京→"Tokyo,JP"、大阪→"Osaka,JP"、北海道/札幌→"Sapporo,JP")
+- 地名が明示されていなければ city は null にする
+- 文章中の日付表現(今日、明日、明後日、○月○日、来週の月曜日 等)を本日の日付を基準に判断し、
+  本日からの経過日数を days_offset に設定する(今日または日付指定なしは0、明日は1、明後日は2、
+  というように最大5まで)
+- 6日以上先の日付、または過去の日付・不明瞭な日付の場合は days_offset を6にする
+```
+
+- `{today}`: `zoneinfo.ZoneInfo("Asia/Tokyo")`基準の本日の日付(ISO 8601)。`{weekday}`: 日本語の曜日1文字(月〜日)
+
+### LOCATION_JSON_SCHEMA(strict)
+
+```python
+LOCATION_JSON_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "city": {"type": ["string", "null"]},
+        "days_offset": {"type": "integer", "enum": [0, 1, 2, 3, 4, 5, 6]},
+    },
+    "required": ["city", "days_offset"],
+    "additionalProperties": False,
+}
+```
+
+response_format は B.1/B.2 と同じ完全形式(`name: "location_date_extraction"`)で渡す。`days_offset`は`minimum`/`maximum`ではなく`enum`で範囲を表現する(strict構造化出力は数値範囲キーワードを保証しないため。METADATA_JSON_SCHEMAと同じ方針)。
 
 ---
 
@@ -1847,6 +1945,7 @@ response_format は B.1 と同じ完全形式(`name: "coordinate_suggestion"`)�
 | テスト観点一覧 | 14.1節 |
 | デプロイ手順 | 15.6節 |
 | バックアップ手順 | 16.1節 |
+| コーデ提案の天気解決(場所・日付抽出) | 11.3節 |
 | enum正本 | 付録A |
 | プロンプト正本 | 付録B |
 
