@@ -18,6 +18,8 @@ services:
     # ports: 記述しない(内部ネットワークのみ)
   frontend:
     build: ../frontend
+    environment:
+      INTERNAL_API_BASE_URL: http://backend:8000
     restart: unless-stopped
 volumes:
   caddy_data:

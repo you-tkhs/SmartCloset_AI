@@ -11,7 +11,10 @@ import type {
   WeatherInfo,
 } from "./types";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
+const API_BASE_URL =
+  typeof window === "undefined"
+    ? (process.env.INTERNAL_API_BASE_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? "")
+    : (process.env.NEXT_PUBLIC_API_BASE_URL ?? "");
 
 export class ApiError extends Error {
   readonly status: number;

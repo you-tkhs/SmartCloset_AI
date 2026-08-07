@@ -7,3 +7,6 @@ packages:
 runcmd:
   - systemctl enable --now docker
   - usermod -aG docker ubuntu
+  - iptables -I INPUT 1 -p tcp --dport 80 -m state --state NEW -j ACCEPT
+  - iptables -I INPUT 1 -p tcp --dport 443 -m state --state NEW -j ACCEPT
+  - netfilter-persistent save
