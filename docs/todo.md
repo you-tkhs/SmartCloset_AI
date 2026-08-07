@@ -913,7 +913,7 @@ chore(backend): プロジェクト雛形を作成
 - **推奨コミットメッセージ**: `chore(deploy): complete phase 6 deployment`
 - **チェック**: 実装済み [x] / テスト済み [x] / commit済み [x] / push済み [x]
 - **push済みcommit hash**: `728b8d9`
-- **備考**: 0.5節チェックリスト全項目確認済み(design.md/todo.md差分なし、API仕様・DBモデル・環境変数の変更なし、.gitignore・機密情報混入なし)。backend: `pytest -m "not yolo" -q` で129 passed。frontend: `tsc --noEmit`・`npm run build`通過。公開URL`https://redacted-domain.example.com/api/health`で`model_loaded:true`確認済み。README更新完了(ステータス「稼働中」・デモ画像4枚掲載・ロードマップ全チェック・今後の展望追記)。push・mainへのmergeはユーザー承認待ち
+- **備考**: 0.5節チェックリスト全項目確認済み(design.md/todo.md差分なし、API仕様・DBモデル・環境変数の変更なし、.gitignore・機密情報混入なし)。backend: `pytest -m "not yolo" -q` で129 passed。frontend: `tsc --noEmit`・`npm run build`通過。公開URL(本番環境)の`/api/health`で`model_loaded:true`確認済み。README更新完了(ステータス「稼働中」・デモ画像4枚掲載・ロードマップ全チェック・今後の展望追記)。push・mainへのmergeはユーザー承認待ち
 
 ## T7-1: UI改善パス(アップロード・ナビ・README仕上げ)
 
