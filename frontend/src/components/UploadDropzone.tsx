@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef } from "react";
 import { ACCEPTED_MIME_TYPES, MAX_UPLOAD_SIZE_BYTES } from "@/lib/upload";
 
 interface UploadDropzoneProps {
@@ -9,8 +9,8 @@ interface UploadDropzoneProps {
 }
 
 export function UploadDropzone({ onFileAccepted, onValidationError }: UploadDropzoneProps) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [isDragging, setIsDragging] = useState(false);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const libraryInputRef = useRef<HTMLInputElement>(null);
 
   const validateAndAccept = useCallback(
     (file: File | undefined | null) => {
@@ -29,28 +29,20 @@ export function UploadDropzone({ onFileAccepted, onValidationError }: UploadDrop
   );
 
   return (
-    <div
-      onDragOver={(e) => {
-        e.preventDefault();
-        setIsDragging(true);
-      }}
-      onDragLeave={() => setIsDragging(false)}
-      onDrop={(e) => {
-        e.preventDefault();
-        setIsDragging(false);
-        validateAndAccept(e.dataTransfer.files?.[0]);
-      }}
-      onClick={() => inputRef.current?.click()}
-      role="button"
-      tabIndex={0}
-      className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-12 text-center transition-colors ${
-        isDragging
-          ? "border-zinc-900 bg-zinc-50 dark:border-zinc-100 dark:bg-zinc-900"
-          : "border-zinc-300 dark:border-zinc-700"
-      }`}
-    >
+    <div className="flex flex-col items-center justify-center gap-4 rounded-lg border-2 border-zinc-300 p-12 text-center dark:border-zinc-700">
       <input
-        ref={inputRef}
+        ref={cameraInputRef}
+        type="file"
+        accept="image/jpeg,image/png"
+        capture="environment"
+        className="hidden"
+        onChange={(e) => {
+          validateAndAccept(e.target.files?.[0]);
+          e.target.value = "";
+        }}
+      />
+      <input
+        ref={libraryInputRef}
         type="file"
         accept="image/jpeg,image/png"
         className="hidden"
@@ -59,9 +51,22 @@ export function UploadDropzone({ onFileAccepted, onValidationError }: UploadDrop
           e.target.value = "";
         }}
       />
-      <p className="text-sm text-zinc-600 dark:text-zinc-400">
-        クリックして画像を選択、またはドラッグ&ドロップ
-      </p>
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <button
+          type="button"
+          onClick={() => cameraInputRef.current?.click()}
+          className="rounded-full bg-zinc-900 px-5 py-2 text-sm text-white dark:bg-zinc-100 dark:text-zinc-900"
+        >
+          写真を撮る
+        </button>
+        <button
+          type="button"
+          onClick={() => libraryInputRef.current?.click()}
+          className="rounded-full border border-zinc-300 px-5 py-2 text-sm text-zinc-700 dark:border-zinc-700 dark:text-zinc-300"
+        >
+          ライブラリから選択
+        </button>
+      </div>
       <p className="text-xs text-zinc-400">JPEG / PNG・10MBまで</p>
     </div>
   );

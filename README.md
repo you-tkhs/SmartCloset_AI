@@ -3,21 +3,21 @@
 **服の写真を撮るだけ。AIが切り抜き・属性抽出してクローゼット化し、天気と気分に合わせてコーディネートを提案するWebアプリ。**
 
 - 開発ステータス: **稼働中**(Oracle Cloud上で本番稼働、Phase 0〜6実装完了。[ロードマップ](#ロードマップ))
-- 技術スタック: YOLOv8-seg(ファインチューニング) / OpenAI GPT-5.4-nano / FastAPI / Next.js / SQLite / Docker + Caddy(Oracle Cloud ¥0運用)
-
-### AIパイプラインの処理過程
-
-| Original | Mask | Transparent | Annotated |
-|---|---|---|---|
-| ![original](docs/images/demo_original.jpeg) | ![mask](docs/images/demo_mask.png) | ![transparent](docs/images/demo_transparent.png) | ![annotated](docs/images/demo_annotated.png) |
-
-<!-- TODO(デモ): 完成後のアプリ画面のスクリーンショットを掲載する(UI改善パス実施後に追加予定) -->
+- 技術スタック: YOLOv8-seg(ファインチューニング) / OpenAI GPT-5.4-nano / FastAPI / Next.js / SQLite / Docker + Caddy + Terraform(Oracle Cloud ¥0運用)
 
 ## できること
 
 1. **衣服の自動登録** — 服の写真をアップロードすると、ファインチューニング済みYOLOv8-segが背景を切り抜き、GPT-5.4-nanoがカテゴリ・色(2種)・柄・素材・シルエットを抽出して自動登録
 2. **クローゼット閲覧** — 登録した服を背景透過画像で一覧・検索(カテゴリ/色/柄/素材フィルタ)
 3. **コーディネート提案** — 「今日は大事な会議。きちんと見せたい」と入力すると、現在地の天気・気温とクローゼットの中身を踏まえてLLMが提案
+
+<!-- TODO(デモ): 完成後のアプリ画面のスクリーンショットを掲載する(UI改善パス実施後に追加予定) -->
+
+### AIパイプラインの処理過程(上記1の中身)
+
+| Original | Mask | Transparent | Annotated |
+|---|---|---|---|
+| ![original](docs/images/demo_original.jpeg) | ![mask](docs/images/demo_mask.png) | ![transparent](docs/images/demo_transparent.png) | ![annotated](docs/images/demo_annotated.png) |
 
 ## 背景
 
@@ -52,12 +52,13 @@ Fashionpediaだけでは検出できなかった shoes / watch / glasses 等を�
       │ HTTPS + Basic認証
       ▼
 Caddy(:443) ── 外部公開はここのみ・自動HTTPS
- ├─ /api → FastAPI ── BackgroundTasks: YOLOv8-seg(9クラス) → 背景透過PNG
- │            │                        → GPT-5.4-nano属性抽出 → SQLite保存
- │            └─ OpenWeatherMap / OpenAI API
- └─ / → Next.js(クローゼットUI・コーデ提案UI)
+ ├─ /api    → FastAPI ── BackgroundTasks: YOLOv8-seg(9クラス) → 背景透過PNG
+ │              │                        → GPT-5.4-nano属性抽出 → SQLite保存
+ │              └─ OpenWeatherMap / OpenAI API
+ ├─ /images → FastAPI ── 背景透過PNG・原画像の配信
+ └─ /       → Next.js(クローゼットUI・コーデ提案UI)
 
-デプロイ: Oracle Cloud Always Free ARM VM + Docker Compose(月額¥0 + OpenAI API従量のみ)
+デプロイ: Oracle Cloud Always Free ARM VM(Terraformでネットワーク・インスタンスをコード管理。deploy/terraform/)+ Docker Compose(月額¥0 + OpenAI API従量のみ)
 ```
 
 詳細は [docs/design.md](docs/design.md)(システム構成・API・DB・エラー設計・デプロイ)を参照。
@@ -76,6 +77,19 @@ Caddy(:443) ── 外部公開はここのみ・自動HTTPS
 - 評価基準: [docs/evaluation.md](docs/evaluation.md)
 - モデルレベルの mAP: [docs/val_result_9class_30epoch_data_augmentation.md](docs/val_result_9class_30epoch_data_augmentation.md)
 - 登録率のボトルネックはYOLO切り出し精度(watch等)。アプリではメタデータの手動補正機能で運用カバーし、補正データを再学習に還元する設計([design.md 18.2節](docs/design.md))
+
+## ディレクトリ構成
+
+```
+backend/          FastAPIアプリ本体(API・DB・AIパイプライン)
+frontend/         Next.jsアプリ本体(クローゼットUI・コーデ提案UI)
+deploy/           docker-compose.yml・Caddyfile・deploy/terraform/(Oracle Cloud IaC)
+docs/             design.md・todo.md・評価資料・docs/images/(デモ画像)
+scripts/          backup.sh・restore.sh(VM上のバックアップ・復元)
+ai_prototype/     Webアプリを介さないAIパイプラインPoC(Notebook)
+training/         YOLOv8-segの学習用Notebook
+models/           学習済みモデル重み(Git管理外・別途用意が必要)
+```
 
 ## Webアプリの動かし方(開発環境)
 
@@ -125,6 +139,17 @@ cd frontend
 npx tsc --noEmit
 npm run build
 ```
+
+### Docker Composeで本番相当構成を試す
+
+```bash
+cd backend && cp .env.example .env   # OPENAI_API_KEY・OPENWEATHER_API_KEYを設定
+cd ../deploy && cp .env.example .env # CADDY_DOMAIN=localhost 等を設定
+docker compose up -d --build
+curl -k https://localhost/api/health
+```
+
+Caddy(自動HTTPS)・FastAPI・Next.jsの3コンテナが起動し、本番と同じ構成をローカルで確認できる。詳細は [docs/design.md](docs/design.md) 15章(デプロイ設計)を参照。
 
 - 設計・APIの詳細は [docs/design.md](docs/design.md)、実装タスクの進行状況は [docs/todo.md](docs/todo.md) を参照。
 

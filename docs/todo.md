@@ -915,6 +915,20 @@ chore(backend): プロジェクト雛形を作成
 - **push済みcommit hash**: `728b8d9`
 - **備考**: 0.5節チェックリスト全項目確認済み(design.md/todo.md差分なし、API仕様・DBモデル・環境変数の変更なし、.gitignore・機密情報混入なし)。backend: `pytest -m "not yolo" -q` で129 passed。frontend: `tsc --noEmit`・`npm run build`通過。公開URL`https://redacted-domain.example.com/api/health`で`model_loaded:true`確認済み。README更新完了(ステータス「稼働中」・デモ画像4枚掲載・ロードマップ全チェック・今後の展望追記)。push・mainへのmergeはユーザー承認待ち
 
+## T7-1: UI改善パス(アップロード・ナビ・README仕上げ)
+
+- **目的**: T6-6備考で先送りしていたUI改善希望への対応(design.md変更を伴わないフロントエンド限定の変更)
+- **前提条件**: Phase 6完了
+- **変更対象ファイル**: `frontend/src/components/{UploadDropzone,Header,icons}.tsx`、`README.md`
+- **実装内容**: ①アップロード画面のドラッグ&ドロップを廃止し「写真を撮る」(`capture="environment"`)・「ライブラリから選択」の2ボタンに変更 ②ナビ(Header)にクローゼット/衣服を登録/コーデ提案の3アイコンを手書きSVGで追加(新規ライブラリ依存なし) ③READMEを再構成(AIパイプライン画像を技術ハイライト節へ移動しアプリ画面スクリーンショット枠を冒頭に確保、Terraform言及、`/images`ルートをアーキテクチャ図に追記、ディレクトリ構成セクション新設、Docker Compose起動手順を追記)
+- **完了条件**: 型チェック・ビルドが通り、backendテストに影響がない
+- **検証コマンド**: `cd frontend && npx tsc --noEmit && npm run build` / `cd backend && python -m pytest -m "not yolo" -q`
+- **想定される正常結果**: 型エラーなし・ビルド成功・backend 129 passed
+- **推奨コミットメッセージ**: `fix(frontend): アップロードUIとナビアイコンを改善`
+- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [ ] / push済み [ ]
+- **commit hash**: ______
+- **備考**: アプリ画面のスクリーンショットは、別途計画中の天気・提案機能の再設計(コーデ提案画面のUIが変わる見込み)の後にまとめて撮影する方針のため今回は見送り。README14行目のTODOコメントはそのまま残す。コーデ提案の「おすすめアイテム」表示はユーザー懸念(適当な画像では?)を調査した結果バグではないことを確認済み(backend側でLLM推奨IDをDB照合済みのもののみ返す設計)。天気・提案機能の再設計は別ブランチ・別タスクとして今後計画する
+
 ---
 
 # 完成条件(全体)

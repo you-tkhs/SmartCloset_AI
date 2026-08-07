@@ -1,9 +1,10 @@
 import Link from "next/link";
+import { ClosetIcon, SparklesIcon, UploadIcon } from "@/components/icons";
 
 const NAV_ITEMS = [
-  { href: "/", label: "クローゼット" },
-  { href: "/upload", label: "衣服を登録" },
-  { href: "/suggest", label: "コーデ提案" },
+  { href: "/", label: "クローゼット", icon: ClosetIcon },
+  { href: "/upload", label: "衣服を登録", icon: UploadIcon },
+  { href: "/suggest", label: "コーデ提案", icon: SparklesIcon },
 ];
 
 export function Header() {
@@ -18,8 +19,9 @@ export function Header() {
             <Link
               key={item.href}
               href={item.href}
-              className="text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+              className="flex items-center gap-1.5 text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
             >
+              <item.icon className="h-4 w-4" />
               {item.label}
             </Link>
           ))}
