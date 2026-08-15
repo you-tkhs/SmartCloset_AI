@@ -16,6 +16,7 @@ from app.config import settings
 from app.database import get_db
 from app.models.clothing_item import ClothingItem
 from app.models.coordinate_log import CoordinateLog
+from app.prompts.suggest_prompt import build_suggest_user_prompt
 from app.schemas.suggest import SuggestRequest
 from app.schemas.weather import WeatherInfo
 from app.services import location_extraction_service, weather_service
@@ -130,6 +131,19 @@ def _create_completed_item(**overrides):
     db.commit()
     db.close()
     return item_id
+
+
+def test_build_suggest_user_prompt_prioritizes_occasion_over_weather():
+    prompt = build_suggest_user_prompt(
+        WeatherInfo(city="Morioka", temp=28.0, feels_like=29.0, description="晴れ", humidity=50, wind_speed=1.0),
+        "明日の面接に着ていく服を提案してください",
+        "[]",
+    )
+
+    assert "用途・シーン" in prompt
+    assert "TPOに合った選択を最優先" in prompt
+    assert "シーンに合わせた提案理由を主軸に" in prompt
+    assert prompt.index("# ユーザーの要望") < prompt.index("# 天気情報")
 
 
 def test_suggest_service_create_suggestion_returns_valid_items(client, monkeypatch):
@@ -294,6 +308,27 @@ def test_suggest_endpoint_excludes_processing_and_failed_items_from_closet(clien
     assert tops_id in user_message
     assert processing_id not in user_message
     assert failed_id not in user_message
+
+
+def test_suggest_endpoint_prompt_reflects_occasion_from_request_text(client, monkeypatch):
+    tops_id = _create_completed_item(category="tops")
+
+    fake_client = MagicMock()
+    fake_client.chat.completions.create.return_value = _fake_openai_response(
+        json.dumps(
+            {"item_ids": [tops_id], "suggestion_text": "きちんと感のある一着です。", "styling_reason": "面接向け。"}
+        )
+    )
+    monkeypatch.setattr(main_module.app.state, "openai_client", fake_client, raising=False)
+
+    resp = client.post(
+        "/api/suggest", json={"request_text": "明日の面接に着ていく服を提案してください", "use_weather": False}
+    )
+
+    assert resp.status_code == 200
+    user_message = fake_client.chat.completions.create.call_args.kwargs["messages"][1]["content"]
+    assert "面接" in user_message
+    assert "用途・シーン" in user_message
 
 
 def test_suggest_endpoint_weather_failure_returns_200_with_weather_unavailable(client, monkeypatch):
