@@ -403,6 +403,7 @@ frontend側は create-next-app が生成する `.gitignore`(node_modules/.next�
 | `STORAGE_DIR` | `./storage` | ストレージルート |
 | `DATA_DIR` | `./data` | SQLite配置先 |
 | `CORS_ORIGINS` | `["http://localhost:3000"]` | 開発時のフロントエンドオリジン。本番はCaddy同一オリジン配信のため不要(15.3節) |
+| `HOT_WEATHER_TEMP_THRESHOLD_C` | `25.0` | コーデ提案で厚手・防寒素材を除外する気温(体感温度)のしきい値(11.2節) |
 
 ## 5.3 起動時チェック(lifespan)
 
@@ -1067,7 +1068,7 @@ def delete_tmp(tmp_path: Path) -> None:
 
 1. `status="completed"` のアイテムをDBから全件取得(processing / failed は**LLMに送らない**)。0件なら**LLM を呼ばずに** 400 `no_completed_items` を返す(routerで判定)
 2. `use_weather=true` なら **`weather_resolution_service.resolve_weather(request_text, city)`** を呼ぶ(routerが呼ぶ。11.3節: 内部で場所・日付抽出→現在天気/予報の呼び分けを行う)。失敗時は `weather=None` として続行(**提案全体を失敗させない**)。`create_suggestion`自体はこの解決ロジックを知らず、解決済みの`weather`のみを受け取る(シグネチャ不変)
-3. `suggest_service.create_suggestion(db, request_text, weather)` を呼ぶ。クローゼットJSONを構築: `[{"id", "category", "color_primary", "color_secondary", "pattern", "material", "silhouette"}, ...]`(**画像は送らない**。トークン量削減)
+3. `suggest_service.create_suggestion(db, request_text, weather)` を呼ぶ。取得済みアイテムに天候ハード除外(11.2節。`feels_like`が`HOT_WEATHER_TEMP_THRESHOLD_C`以上ならウール等の厚手・防寒素材を除外)を適用し、残ったアイテムでクローゼットJSONを構築: `[{"id", "category", "color_primary", "color_secondary", "pattern", "material", "silhouette"}, ...]`(**画像は送らない**。トークン量削減)
 4. プロンプト(付録B.2)を組み立て、strict JSON Schema指定でLLM呼び出し。リトライは8.3節と同方針(最大2回・指数バックオフ)。それでも失敗なら 503 `service_unavailable`
 5. **返却 `item_ids` をサーバー側で検証**: 手順1の取得結果に存在するIDのみ残し、存在しないIDは除外してWARNINGログに記録。**全IDが無効だった場合**は `items: []` のまま `suggestion_text` を返し(200)、WARNINGログに記録
 6. `coordinate_logs` に記録(検証後の有効IDを保存。`weather_json`には`forecast_date`を含む`WeatherInfo`全体を保存)
@@ -1080,8 +1081,9 @@ def delete_tmp(tmp_path: Path) -> None:
 - **同一カテゴリからは原則最大1点**(bag / glasses / hat / watch等の小物は状況に応じて任意)
 - 基本構成は「tops + bottoms」または「dress」。outer / shoes / 小物は天候・状況に応じて追加
 - カテゴリが不足している場合(例: bottomsが1点もない)も、**不足を suggestion_text で伝えつつ最善の組み合わせを提案**する(エラーにしない)
-- **天気情報がある場合、気温・天候に明らかに合わない厚さ・素材(真夏の厚手アウターやウール、真冬の半袖のみ等)は除外する**(用途・シーンより気温適合を優先するハード制約)
-- **除外後の候補の中から、`request_text` から読み取った面接・デート・オフィス等の「用途・シーン」に沿ってフォーマル度や色柄の抑制などTPOに合った選択を反映**する
+- **体感気温(`feels_like`)が`HOT_WEATHER_TEMP_THRESHOLD_C`(既定25.0℃)以上の場合、厚手・防寒素材(ウール/フリース/ファー/ボア)のアイテムは`suggest_service`が`closet_json`生成前にサーバー側で除外する**(LLMの選択肢自体から外すハード保証。除外後に候補が0件になる場合はフィルタを適用せず全件を渡す。11.1節・付録B.2参照)。プロンプト側にも同旨のルール文言を保険として維持するが、**サーバー側フィルタが一次的な保証手段**であり、プロンプト文言だけには依存しない(自然言語ルールはLLMの確率的挙動により「羽織る」「持ち歩く」等の理由付けで破られることが実機検証で確認されたため)
+- **真冬の半袖のみ等、気温に対して薄着すぎる組み合わせを避ける**指示はプロンプト側の努力目標のまま維持する(スコープ外: `material`のenumには夏専用と断定できる値がなく、コットン等は薄手・厚手を区別できないため、こちらは今回サーバー側の除外対象にしない)
+- **上記の除外後に残った候補の中から、`request_text` から読み取った面接・デート・オフィス等の「用途・シーン」に沿ってフォーマル度や色柄の抑制などTPOに合った選択を反映**する
 - suggestion_text は200字以内、styling_reason は選定理由を簡潔に。日本語で出力
 
 ## 11.3 天気解決の仕様(weather_service / location_extraction_service / weather_resolution_service)
@@ -1140,6 +1142,7 @@ def resolve_weather(request_text: str, explicit_city: str | None) -> WeatherInfo
 |---|---|
 | completedアイテム0件 | LLMを呼ばず 400 `no_completed_items` |
 | processing / failed のアイテム | クローゼットJSONに含めない |
+| 体感気温が`HOT_WEATHER_TEMP_THRESHOLD_C`以上で厚手・防寒素材(ウール/フリース/ファー/ボア)のアイテムがある | `closet_json`生成前にサーバー側で除外(除外後0件ならフィルタを適用せず全件を渡す。11.2節) |
 | カテゴリ不足 | エラーにせずLLMが不足を明示した提案を返す(11.2節) |
 | 天気API失敗 | `weather_available: false` で続行。weather_jsonはNULLでログ記録 |
 | 場所・日付抽出の失敗 | `DEFAULT_CITY`+現在天気にフォールバック(抽出失敗≒地名なしとして扱う) |
