@@ -1080,6 +1080,7 @@ def delete_tmp(tmp_path: Path) -> None:
 - **同一カテゴリからは原則最大1点**(bag / glasses / hat / watch等の小物は状況に応じて任意)
 - 基本構成は「tops + bottoms」または「dress」。outer / shoes / 小物は天候・状況に応じて追加
 - カテゴリが不足している場合(例: bottomsが1点もない)も、**不足を suggestion_text で伝えつつ最善の組み合わせを提案**する(エラーにしない)
+- **`request_text` から面接・デート・オフィス等の「用途・シーン」を読み取り、フォーマル度や色柄の抑制などTPOに合った選択を最優先で反映**する
 - suggestion_text は200字以内、styling_reason は選定理由を簡潔に。日本語で出力
 
 ## 11.3 天気解決の仕様(weather_service / location_extraction_service / weather_resolution_service)
@@ -1785,18 +1786,18 @@ response = client.chat.completions.create(
 
 ```text
 あなたはプロのファッションスタイリストです。
-ユーザーのクローゼットに実際にある衣服の中から、天気とユーザーの要望に最適な
+ユーザーのクローゼットに実際にある衣服の中から、ユーザーの要望(用途・シーン)を最優先しつつ天気にも配慮した
 コーディネートを提案してください。クローゼットにない衣服を提案してはいけません。
 ```
 
 ### ユーザープロンプトテンプレート(build_suggest_user_prompt)
 
 ```text
-# 天気情報
-{weather_block}
-
 # ユーザーの要望
 {request_text}
+
+# 天気情報
+{weather_block}
 
 # クローゼット(JSON)
 {closet_json}
@@ -1807,7 +1808,8 @@ response = client.chat.completions.create(
 - 同一カテゴリからは原則1点まで(bag, hat, watch, glasses などの小物は状況に応じて任意)
 - 基本構成は「tops + bottoms」または「dress」。outer や shoes、小物は天候・状況に応じて加える
 - 該当するアイテムが乏しい場合も、その旨を suggestion_text で伝えつつ最善の組み合わせを提案する
-- 天気情報がある場合は、天気に触れながら提案理由を自然に述べる(例:「明日は28℃予想なので涼しい素材を選びました」)
+- request_text から面接・デート・オフィス・カジュアルな外出などの「用途・シーン」を読み取り、フォーマル度・色柄の抑制・清潔感などTPOに合った選択を最優先で反映する
+- 天気情報がある場合は、シーンに合わせた提案理由を主軸にしつつ天気にも簡潔に触れる(例:「面接向けにきちんと感のある一着に、明日は28℃予想なので涼しい素材を選びました」)
 - suggestion_text は200字以内の提案文、styling_reason は選定理由を簡潔に書く
 - 日本語で出力する
 ```
