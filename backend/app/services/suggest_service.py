@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 _RETRYABLE_API_ERRORS = (APIConnectionError, APITimeoutError, InternalServerError, RateLimitError)
 _INITIAL_RETRY_DELAY_SECONDS = 1.0
 _CLOSET_ITEM_KEYS = ("id", "category", "color_primary", "color_secondary", "pattern", "material", "silhouette")
+_WARM_MATERIALS = frozenset({"ウール", "フリース", "ファー", "ボア"})
 
 
 @dataclass
@@ -35,6 +36,16 @@ class SuggestionResult:
     items: list[ClothingItem]
     weather: WeatherInfo | None
     log_id: str
+
+
+def _filter_weather_appropriate(items: list[ClothingItem], weather: WeatherInfo | None) -> list[ClothingItem]:
+    if weather is None or weather.feels_like < settings.HOT_WEATHER_TEMP_THRESHOLD_C:
+        return items
+    filtered = [item for item in items if item.material not in _WARM_MATERIALS]
+    if len(filtered) < len(items):
+        logger.info("suggest: excluded %d warm-material item(s) for hot weather", len(items) - len(filtered))
+    # 除外後に候補が0件になる場合は、乏しくても最善を提案する既存方針(11.2節)を優先しフィルタを適用しない
+    return filtered if filtered else items
 
 
 def _closet_json(items: list[ClothingItem]) -> str:
@@ -133,10 +144,11 @@ def create_suggestion(db: Session, request_text: str, weather: WeatherInfo | Non
         db.query(ClothingItem).filter(ClothingItem.user_id == 1, ClothingItem.status == "completed").all()
     )
 
-    user_prompt = build_suggest_user_prompt(weather, request_text, _closet_json(completed_items))
+    items_for_closet = _filter_weather_appropriate(completed_items, weather)
+    user_prompt = build_suggest_user_prompt(weather, request_text, _closet_json(items_for_closet))
     data = _call_llm(client, user_prompt)
 
-    items_by_id = {item.id: item for item in completed_items}
+    items_by_id = {item.id: item for item in items_for_closet}
     requested_ids = data["item_ids"]
     recommended_ids = [item_id for item_id in requested_ids if item_id in items_by_id]
     invalid_ids = [item_id for item_id in requested_ids if item_id not in items_by_id]

@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     STORAGE_DIR: str = "./storage"
     DATA_DIR: str = "./data"
     CORS_ORIGINS: list[str] = ["http://localhost:3000"]
+    HOT_WEATHER_TEMP_THRESHOLD_C: float = 25.0
 
     DATABASE_URL: str = "sqlite:///./data/smartcloset.db"
     OPENAI_API_KEY: str | None = None

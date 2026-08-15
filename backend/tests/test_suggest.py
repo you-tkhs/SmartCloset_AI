@@ -23,7 +23,7 @@ from app.services import location_extraction_service, weather_service
 from app.services import weather_resolution_service as weather_resolution_module
 from app.services.llm_service import LlmServiceError
 from app.services.location_extraction_service import LocationDateExtraction
-from app.services.suggest_service import create_suggestion
+from app.services.suggest_service import _filter_weather_appropriate, create_suggestion
 from app.services.weather_resolution_service import resolve_weather
 
 
@@ -131,6 +131,67 @@ def _create_completed_item(**overrides):
     db.commit()
     db.close()
     return item_id
+
+
+def test_filter_weather_appropriate_excludes_warm_materials_when_hot():
+    hot_weather = WeatherInfo(city="Naha,JP", temp=29.0, feels_like=29.0, description="晴れ", humidity=60, wind_speed=1.0)
+    cotton = ClothingItem(id="1", category="tops", material="コットン")
+    wool = ClothingItem(id="2", category="outer", material="ウール")
+
+    result = _filter_weather_appropriate([cotton, wool], hot_weather)
+
+    assert result == [cotton]
+
+
+def test_filter_weather_appropriate_keeps_warm_materials_when_not_hot():
+    cool_weather = WeatherInfo(city="Sapporo,JP", temp=15.0, feels_like=15.0, description="曇り", humidity=50, wind_speed=1.0)
+    wool = ClothingItem(id="1", category="outer", material="ウール")
+
+    result = _filter_weather_appropriate([wool], cool_weather)
+
+    assert result == [wool]
+
+
+def test_filter_weather_appropriate_falls_back_to_all_items_when_all_excluded():
+    hot_weather = WeatherInfo(city="Naha,JP", temp=29.0, feels_like=29.0, description="晴れ", humidity=60, wind_speed=1.0)
+    wool = ClothingItem(id="1", category="outer", material="ウール")
+    fleece = ClothingItem(id="2", category="tops", material="フリース")
+
+    result = _filter_weather_appropriate([wool, fleece], hot_weather)
+
+    assert result == [wool, fleece]
+
+
+def test_filter_weather_appropriate_returns_all_items_when_weather_is_none():
+    wool = ClothingItem(id="1", category="outer", material="ウール")
+
+    result = _filter_weather_appropriate([wool], None)
+
+    assert result == [wool]
+
+
+def test_suggest_endpoint_excludes_warm_material_items_when_hot(client, monkeypatch):
+    cotton_id = _create_completed_item(category="tops")
+    wool_id = _create_completed_item(category="outer", material="ウール")
+
+    monkeypatch.setattr(
+        weather_resolution_module, "extract_location_date", lambda *a, **k: LocationDateExtraction(None, 0)
+    )
+    fake_weather = WeatherInfo(city="Naha", temp=29.0, feels_like=31.0, description="晴れ", humidity=65, wind_speed=3.5)
+    monkeypatch.setattr(weather_resolution_module, "get_current_weather", lambda city: fake_weather)
+
+    fake_client = MagicMock()
+    fake_client.chat.completions.create.return_value = _fake_openai_response(
+        json.dumps({"item_ids": [cotton_id], "suggestion_text": "軽装です。", "styling_reason": "暑いため。"})
+    )
+    monkeypatch.setattr(main_module.app.state, "openai_client", fake_client, raising=False)
+
+    resp = client.post("/api/suggest", json={"request_text": "沖縄でデートなので服を提案してください"})
+
+    assert resp.status_code == 200
+    user_message = fake_client.chat.completions.create.call_args.kwargs["messages"][1]["content"]
+    assert cotton_id in user_message
+    assert wool_id not in user_message
 
 
 def test_build_suggest_user_prompt_prioritizes_occasion_over_weather():
