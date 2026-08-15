@@ -970,9 +970,9 @@ chore(backend): プロジェクト雛形を作成
 - **想定される正常結果**: 既存全件+新規テストがすべてpass
 - **想定される異常結果**: 全アイテムが厚手素材の場合にフィルタで0件になり得るバグ → フォールバック(全件返す)のテストで検出
 - **推奨コミットメッセージ**: `docs(design): コーデ提案にサーバー側の気温フィルタを追加`(設計変更) / `feat(suggest): 気温に応じてクローゼットJSONから厚手・防寒素材を除外`(実装)
-- **チェック**: 実装済み [ ] / テスト済み [ ] / commit済み [ ] / push済み [ ]
-- **commit hash**: (未実施)
-- **備考**: (実装完了後に記載)
+- **チェック**: 実装済み [x] / テスト済み [x] / commit済み [x] / push済み [ ]
+- **commit hash**: `b0f5b98`(設計変更commit: `73f63e1`)
+- **備考**: `cd backend && python -m pytest -m "not yolo" -q` で154 passed(既存149件+新規5件。1件`test_no_bulk_file_read_in_storage_service`は変更前から失敗するWindows環境固有の既存問題で無関係)。実backend(TestClient。YOLOのみダミー化)+実OpenAI+実OpenWeatherMap APIのフルパイプラインで動作確認: 「明日沖縄でデートなので服を提案してください」(那覇・体感35.08℃・小雨)で、ログに`suggest: excluded 2 warm-material item(s) for hot weather`が出力され、LLMへの`closet_json`自体からウール素材(bottoms・outer)が除外されていることを確認。結果としてLLMは残った候補からシフォンワンピを選択し、ウール系アイテムのIDは応答に一切含まれなかった。同様に「明日札幌でデートなので服を提案してください」も実行日(2026-08-15)の実際の天気が体感27.72℃だったため同じく除外が発動し、コットン×デニムの組み合わせが選ばれた(季節上、実APIでは真冬のケースを再現できなかったが、自動テストの`test_filter_weather_appropriate_keeps_warm_materials_when_not_hot`で気温が閾値未満の場合にウール素材が除外されないことを別途確認済み)。これはLLMの気まぐれな言い訳(「羽織る」「雨よけ」等)に依存しない、選択肢自体から外れることによる確実な除外であることを確認した
 
 ---
 
