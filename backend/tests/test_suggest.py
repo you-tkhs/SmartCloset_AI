@@ -141,9 +141,23 @@ def test_build_suggest_user_prompt_prioritizes_occasion_over_weather():
     )
 
     assert "用途・シーン" in prompt
-    assert "TPOに合った選択を最優先" in prompt
+    assert "TPOに合った選択を反映" in prompt
     assert "シーンに合わせた提案理由を主軸に" in prompt
     assert prompt.index("# ユーザーの要望") < prompt.index("# 天気情報")
+
+
+def test_build_suggest_user_prompt_has_weather_appropriateness_hard_constraint():
+    prompt = build_suggest_user_prompt(
+        WeatherInfo(city="Naha,JP", temp=29.0, feels_like=31.0, description="晴れ", humidity=65, wind_speed=2.0),
+        "デートに着ていく服を提案してください",
+        "[]",
+    )
+
+    assert "気温・天候に明らかに合わない厚さ・素材" in prompt
+    assert "「羽織る」「持ち歩く」等の口実を含めて一切除外" in prompt
+    assert "用途・シーンより優先されるハード制約" in prompt
+    # 天候ハード制約(気温適合)のルールが用途・シーン反映ルールより先に現れること
+    assert prompt.index("気温・天候に明らかに合わない") < prompt.index("用途・シーン」を読み取り")
 
 
 def test_suggest_service_create_suggestion_returns_valid_items(client, monkeypatch):
