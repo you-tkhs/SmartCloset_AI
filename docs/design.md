@@ -29,7 +29,7 @@
 | `docs/evaluation.md` | PoC評価基準(○△×)+モデル指標との対応考察 | テスト・モニタリング設計の参照元 |
 | `docs/val_result_9class_30epoch_data_augmentation.md` | 学習時 `model.val()` の標準指標(mAP等、クラス別) | モデルレベルのベンチマーク記録。18.2節のモニタリングの基準値 |
 | `docs/poc_history.md` | PoC開発の記録 — 技術的意思決定と知見(ドメインシフト発見・クラス設計の変遷) | 歴史的記録。設計判断の背景資料であり、実装の参照元にしない |
-| `docs/implementation_summary.md` | ソフトウェア実装(Phase 0〜9)を通じて得られた知見 — AIエージェント駆動開発・本番運用後の改善サイクル | 歴史的記録。実装の参照元にしない |
+| `docs/implementation_summary.md` | ソフトウェア実装(Phase 0〜9)を通じて得られた知見 — AIエージェント駆動開発・デプロイの再現性・本番運用後の改善サイクル | 歴史的記録。実装の参照元にしない |
 | `docs/archive/00_initial_concept.md` | 開発初期の構想メモ(目的・差別化・動機)の歴史的記録 | メンテナンスしない。実装の参照元にしない |
 | `docs/archive/01_design_v1.0.md` | 詳細設計書 ver 1.0 の歴史的記録 | メンテナンスしない。本書2.3節の変更点一覧の比較元。実装の参照元にしない |
 
