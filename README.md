@@ -61,7 +61,7 @@ Fashionpediaだけでは検出できなかった shoes / watch / glasses 等を�
 
 ### 5. AI駆動開発を設計で統制する
 
-アプリ実装はコーディングエージェント(Claude Code)に委譲する前提で、**設計書だけを見て実装できる粒度の設計書**([design.md](docs/design.md)・約1,800行)と**タスク単位の作業指示書**([todo.md](docs/todo.md))を整備。設計変更はコードより先に設計書を更新する design-first 運用で進める。
+アプリ実装はコーディングエージェント(Claude Code)に委譲する前提で、**設計書だけを見て実装できる粒度の設計書**([design.md](docs/design.md)・約1,800行)と**タスク単位の作業指示書**([todo.md](docs/todo.md))を整備。設計変更はコードより先に設計書を更新する design-first 運用で進める。→ [実装を通じて得られた知見](docs/implementation_summary.md)
 
 ### 6. 天気・シーン・手持ちの服を正しく重み付けするコーデ提案エンジン
 
@@ -211,6 +211,7 @@ jupyter lab ai_prototype/pipe-line/smartcloset_pipeline_functioned.ipynb
 | [docs/design.md](docs/design.md) | 設計書 ver2.0(正本)— アーキテクチャ・API・DB・異常系・デプロイ |
 | [docs/todo.md](docs/todo.md) | 実装作業指示書(Phase 0〜6+本番稼働後の継続的改善タスク) |
 | [docs/poc_history.md](docs/poc_history.md) | PoC開発の記録 — 技術的意思決定と知見(ドメインシフト発見・クラス設計の変遷) |
+| [docs/implementation_summary.md](docs/implementation_summary.md) | ソフトウェア実装を通じて得られた知見(AIエージェント駆動開発・本番運用後の改善サイクル) |
 | [docs/val_result_9class_30epoch_data_augmentation.md](docs/val_result_9class_30epoch_data_augmentation.md) | 学習時のクラス別mAP |
 | [docs/specification.md](docs/specification.md) | AIシステム仕様・PoC結果 |
 | [docs/prompt_design.md](docs/prompt_design.md) | LLMプロンプト設計・改善履歴 |
