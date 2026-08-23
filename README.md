@@ -2,7 +2,7 @@
 
 **服の写真を撮るだけ。AIが切り抜き・属性抽出してクローゼット化し、天気と気分に合わせてコーディネートを提案するWebアプリ。**
 
-- 開発ステータス: **稼働中**(Oracle Cloud上で本番稼働、Phase 0〜6実装完了。[ロードマップ](#ロードマップ))
+- 開発ステータス: **稼働中**(Oracle Cloud上で本番稼働。Phase 0〜6で構築後、コーデ提案機能を中心に継続的に改善中。[ロードマップ](#ロードマップ))
 - 技術スタック: YOLOv8-seg(ファインチューニング) / OpenAI GPT-5.4-nano / FastAPI / Next.js / SQLite / Docker + Caddy + Terraform(Oracle Cloud ¥0運用)
 
 ## 背景
@@ -46,6 +46,10 @@ Fashionpediaだけでは検出できなかった shoes / watch / glasses 等を�
 ### 5. AI駆動開発を設計で統制する
 
 アプリ実装はコーディングエージェント(Claude Code)に委譲する前提で、**設計書だけを見て実装できる粒度の設計書**([design.md](docs/design.md)・約1,800行)と**タスク単位の作業指示書**([todo.md](docs/todo.md))を整備。設計変更はコードより先に設計書を更新する design-first 運用で進める。
+
+### 6. プロンプトの限界を実機で発見し、確実な保証はサーバー側に持たせた
+
+本番稼働後、気温に明らかに合わない厚手素材(ウール等)が「羽織る」という理由付けでLLMに選ばれ続ける不具合を実機検証で発見した。プロンプトのハード制約はLLMの確率的挙動により**自然言語の指示だけでは100%守られない**と判断し、サーバー側でクローゼットJSON生成前に気温不適合な素材を機械的に除外する処理を追加。LLMの選択肢自体から外すことで、確実な保証を実現した。→ [design.md 11.2節](docs/design.md)
 
 ## アーキテクチャ
 
@@ -183,6 +187,13 @@ jupyter lab ai_prototype/pipe-line/smartcloset_pipeline_functioned.ipynb
 - [x] Phase 5: 仕上げ(エラー処理・ログ・README起動手順)
 - [x] Phase 6: デプロイ(Oracle Cloud・¥0運用・バックアップ)
 
+### Phase 6以降の継続的改善(本番稼働しながら実施)
+
+- [x] UI改善: アップロードをカメラ撮影ボタン化・画面間ナビゲーション追加(T7-1)
+- [x] コーデ提案の場所・日付対応: 文章から場所・日付を抽出し現在/予報天気を切り替え、LINE風チャットUIへ再設計(T8-1)
+- [x] コーデ提案の用途・シーン(TPO)優先: 天気に偏っていた提案ロジックを是正(T9-1)
+- [x] 気温不適合素材のサーバー側ハード除外: プロンプトのソフト制約の限界を発見し、機械的フィルタで確実に保証(T9-2)
+
 ### 今後の展望
 
 - **MLOpsモニタリング**(優先度: 高): `yolo_confidence`分布・`no_mask`率・`is_user_corrected`率をSQLで定点観測し、ユーザー補正データを再学習サイクルへ還元する([design.md 18.2節](docs/design.md))
@@ -195,7 +206,7 @@ jupyter lab ai_prototype/pipe-line/smartcloset_pipeline_functioned.ipynb
 | ドキュメント | 内容 |
 |---|---|
 | [docs/design.md](docs/design.md) | 設計書 ver2.0(正本)— アーキテクチャ・API・DB・異常系・デプロイ |
-| [docs/todo.md](docs/todo.md) | 実装作業指示書(Phase 0〜6・全タスク) |
+| [docs/todo.md](docs/todo.md) | 実装作業指示書(Phase 0〜6+本番稼働後の継続的改善タスク) |
 | [docs/poc_history.md](docs/poc_history.md) | PoC開発の記録 — 技術的意思決定と知見(ドメインシフト発見・クラス設計の変遷) |
 | [docs/val_result_9class_30epoch_data_augmentation.md](docs/val_result_9class_30epoch_data_augmentation.md) | 学習時のクラス別mAP |
 | [docs/specification.md](docs/specification.md) | AIシステム仕様・PoC結果 |

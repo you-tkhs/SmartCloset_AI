@@ -69,7 +69,7 @@
 | 画像ストレージ | ローカルファイル(`backend/storage/`) | S3移行パスあり(18章) |
 | セグメンテーション | YOLOv8n-seg ファインチューニング済み `models/fashionpedia_9class_with_data_augmentation.pt` | 9クラス、CONF_THRES=0.25 |
 | 属性抽出LLM / コーデ提案LLM | OpenAI GPT-5.4-nano(`gpt-5.4-nano`) | strict JSON Schema(付録B) |
-| 天気API | OpenWeatherMap Current Weather Data | タイムアウト5秒、失敗時フォールバック(11.3節) |
+| 天気API | OpenWeatherMap Current Weather Data + 5 Day/3 Hour Forecast | 場所・日付抽出により現在/予報を使い分け。タイムアウト5秒、失敗時フォールバック(11.3節) |
 | フロントエンド | Next.js(App Router)/ React / TypeScript / Tailwind CSS | |
 | デプロイ | Oracle Cloud Always Free ARM VM + Docker Compose + Caddy(自動HTTPS+Basic認証) | 15章 |
 | テスト | pytest / TestClient(バックエンド)、tsc+手動E2E(フロントエンド) | 14章 |
