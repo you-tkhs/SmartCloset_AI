@@ -25,6 +25,21 @@
 |---|---|---|---|
 | ![original](docs/images/demo_original.jpeg) | ![mask](docs/images/demo_mask.png) | ![transparent](docs/images/demo_transparent.png) | ![annotated](docs/images/demo_annotated.png) |
 
+### AIパイプラインのPoC結果(実画像251枚・人手評価)
+
+| 指標 | 成功率 | 許容率 |
+|---|---:|---:|
+| YOLOセグメンテーション | 80.1% | 91.6% |
+| カテゴリ抽出 | 97.2% | 97.6% |
+| 主色抽出 | 99.6% | 99.8% |
+| 柄抽出 | 96.0% | 98.8% |
+| 素材抽出 | 88.0% | 96.0% |
+| **最終登録判定** | **64.5%** | **84.9%** |
+
+- 評価基準: [docs/evaluation.md](docs/evaluation.md)
+- モデルレベルの mAP: [docs/val_result_9class_30epoch_data_augmentation.md](docs/val_result_9class_30epoch_data_augmentation.md)
+- 登録率のボトルネックはYOLO切り出し精度(watch等)。アプリではメタデータの手動補正機能で運用カバーし、補正データを再学習に還元する設計([design.md 18.2節](docs/design.md))
+
 ## 技術ハイライト
 
 ### 1. ドメインシフトを特定し、評価体系を作り直した
@@ -70,21 +85,6 @@ Caddy(:443) ── 外部公開はここのみ・自動HTTPS
 ```
 
 詳細は [docs/design.md](docs/design.md)(システム構成・API・DB・エラー設計・デプロイ)を参照。
-
-## PoC結果(実画像251枚・人手評価)
-
-| 指標 | 成功率 | 許容率 |
-|---|---:|---:|
-| YOLOセグメンテーション | 80.1% | 91.6% |
-| カテゴリ抽出 | 97.2% | 97.6% |
-| 主色抽出 | 99.6% | 99.8% |
-| 柄抽出 | 96.0% | 98.8% |
-| 素材抽出 | 88.0% | 96.0% |
-| **最終登録判定** | **64.5%** | **84.9%** |
-
-- 評価基準: [docs/evaluation.md](docs/evaluation.md)
-- モデルレベルの mAP: [docs/val_result_9class_30epoch_data_augmentation.md](docs/val_result_9class_30epoch_data_augmentation.md)
-- 登録率のボトルネックはYOLO切り出し精度(watch等)。アプリではメタデータの手動補正機能で運用カバーし、補正データを再学習に還元する設計([design.md 18.2節](docs/design.md))
 
 ## ディレクトリ構成
 
