@@ -38,6 +38,7 @@
 
 - 評価基準: [docs/evaluation.md](docs/evaluation.md)
 - モデルレベルの mAP: [docs/val_result_9class_30epoch_data_augmentation.md](docs/val_result_9class_30epoch_data_augmentation.md)
+- 評価実行ノートブック(人手評価251枚の実施過程): [ai_prototype/Poc/smartcloset_poc.ipynb](ai_prototype/Poc/smartcloset_poc.ipynb)
 - 登録率のボトルネックはYOLO切り出し精度(watch等)。アプリではメタデータの手動補正機能で運用カバーし、補正データを再学習に還元する設計([design.md 18.2節](docs/design.md))
 
 ## 技術ハイライト
