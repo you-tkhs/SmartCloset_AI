@@ -19,6 +19,12 @@
 |---|---|---|
 | ![クローゼット画面](docs/images/closet.png) | ![衣服登録画面](docs/images/upload.png) | ![コーデ提案画面](docs/images/suggest.png) |
 
+### 予定によって提案が変わる例(上記3の中身)
+
+同じクローゼット・同じ天気でも、「面接」ならシャツとジャケットできちんと感のある組み合わせを、「ジムで筋トレ」なら動きやすいスウェットとジョガーを選ぶ。
+
+![予定による提案の違い](docs/images/suggest_context.png)
+
 ### AIパイプラインの処理過程(上記1の中身)
 
 | Original | Mask | Transparent | Annotated |
