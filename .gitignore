@@ -45,3 +45,6 @@ deploy/terraform/terraform.tfvars
 deploy/terraform/*.tfplan
 deploy/terraform/tfplan
 deploy/terraform/crash.log
+
+# ai_prototype のサンプル入力画像(ローカルのみで保持)
+ai_prototype/development/input/
